@@ -86,6 +86,31 @@ cfu_count$switch_time = cfu_count$Time-24
 cfu_summary$switch_time = cfu_summary$Time-24
 ```
 
+```{r, echo = T, eval=T, message=F, warning=F, results=F}
+
+ggplot(subset(cfu_count, Gut %in% c("Ileum")), aes(x = switch_time, y = CFU))+
+  stat_summary(fun=mean, geom="line", aes(group=Gut), color = "gray", alpha=0.5, stroke =0)  +
+  stat_summary(fun.data=mean_sdl, fun.args = list(mult=1), 
+               geom="pointrange", color="gray", alpha=0.5 , stroke =0) +
+  geom_beeswarm(data= subset(cfu_count, switch_time==-24), size=1.2, colour= "blue", alpha = 0.5, width =1, stroke =0 )+
+  geom_quasirandom(fill = "goldenrod2", height = 0, width = 0.5, size = 1.2, colour = "black", alpha=0.5, stroke =0) +
+  geom_hline(yintercept=50, col="black", linetype = "dashed") +
+  theme(text=element_text(size=8,  family="Arial"),
+        panel.background = element_rect(fill = "white", colour = "grey50"),
+        panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        axis.text.x = element_text(color = "black", size=8), axis.text.y = element_text(color = "black", size=8),
+        axis.title.x =element_text(color = "black", size=8), axis.title.y =element_text(color = "black", size=8),
+        plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
+  scale_y_log10(name = "CFUs / Ileum",
+        breaks = trans_breaks("log10", function(x) 10^x),
+        labels = trans_format("log10", math_format(10^.x)))+
+  scale_x_continuous(name = "Time (h)", limits=c(-24, 48), breaks=seq(-24, 48, 8)) +
+  annotate("text", x=15, y=14, size=2, label= "Colonization Success (%)")+
+  geom_text(data=cfu_summary, aes(label=paste0(round(Colonization,0),"%"),y=6), size=2)+
+  force_panelsizes(rows = unit(1.6, "in"), cols = unit(2.4, "in"))
+
+```
+
 ##### Figure 3B
 ```{r, echo = T, eval=T, message=F, warning=F, results=F}
 

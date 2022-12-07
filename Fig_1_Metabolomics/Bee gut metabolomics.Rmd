@@ -1,0 +1,709 @@
+---
+title: "Bee Gut Metabolomics"
+author: "Andrew Quinn"
+date: "25/01/2021"
+output: html_document
+---
+# Analysis of gut metabolomics dataset for (Figure 1B, 1C, S3)
+## Experimental Design: Colonized bees [S. alvi, Gilliamella, S. alvi + Gilliamella, MD] fed [sugar water, sugar water + pollen]
+### Aliquots from centrifuged gut supernatants were divided to extract soluble metabolites and short chain fatty acids (See Methods). Derivatized samples were run on an Agilent 8890/5977B series GC-MSD with VF-5MS column. Features were extracted using MassHunter Quantitative analysis software (Agilent) and identified using NIST 17 MS library or analytical standards. 
+
+
+### Load the required package to reproduce this analysis (Need to remove #'s)
+### Skip this chunk if required packages already downloaded
+
+```{r, echo = T, eval=T, message=F, warning=F, results=F}
+
+#required_packages = c("dplyr", "data.table", "ggplot2", "readxl", "ggbeeswarm", "ggpubr", #"EnvStats", "tidyverse", "patchwork", "ggforce", "wesanderson", "RcolorBrewer", "extrafont", #"ggthemes" ,"egg", "officer", "rvg","ggh4x", "lubridate", "stringr", "modelr",
+#"grid", "lmm2met", "ggrepel")
+#need_install = required_packages[!(required_packages) %in% installed.packages()]
+
+#if (length(need_install) > 0){
+#  install.packages((need_install))
+#}
+
+#lapply(required_packages, require, character.only=T)
+
+#dir_script = dirname(rstudioapi::getSourceEditorContext()$path)
+
+#setwd(dir_script)
+```
+
+## Load data sheets
+### Convert variables to factors
+```{r, message = FALSE,warning = FALSE}
+library(readxl)
+library(RColorBrewer)
+library(EnvStats)
+library(ggpubr)
+library(lubridate)
+library(stringr)
+library(modelr)
+library(ggforce)
+library(tidyverse)
+
+ISTD <- read_csv("ISTD_all.csv")
+
+dat_smet <- read_csv("Data_all.csv")
+
+dat_smet$Bee_exp <- as.factor(dat_smet$Bee_exp)
+dat_smet$Condition <- as.factor(dat_smet$Condition)
+dat_smet$Food <- as.factor(dat_smet$Food)
+dat_smet$Metabolite <- as.factor(dat_smet$Metabolite)
+dat_smet$Date <- mdy_hm(dat_smet$Date)
+dat_smet$SCFA_Batch <- as.factor(dat_smet$SCFA_Batch)
+dat_smet$Smet_Batch <- as.factor(dat_smet$Smet_Batch)
+
+```
+
+
+## Normalize Response to internal standards
+## Data split between GC-MS analysis of soluble metabolites vs short chain fatty acids
+```{r, message = FALSE, warning=FALSE}
+dat_smet_norm <- dat_smet %>%
+  left_join(ISTD, by = c("Sample","Type","Condition","SCFA_Batch","Smet_Batch"))%>%
+  mutate(Norm_resp = case_when(
+    str_detect(Metabolite, "Acetate") ~ Response / Ival_norm,
+    str_detect(Metabolite, "Butyrate") ~ Response / Ival_norm,
+    str_detect(Metabolite, "Formate") ~ Response / Ival_norm,
+    str_detect(Metabolite, "Propionate") ~ Response / Ival_norm,
+    str_detect(Metabolite, "Isovalerate") ~ Response / Ival_norm,
+    str_detect(Metabolite, "Maleate") ~ Response / Ival_norm,
+    str_detect(Metabolite, "Malonate") ~ Response / Ival_norm,
+    str_detect(Metabolite, "Pentanoate") ~ Response / Ival_norm,
+    TRUE ~ Response / Nle_norm),
+    Metab_type = case_when(
+    str_detect(Metabolite, "Acetate") ~ "SCFA",
+    str_detect(Metabolite, "Butyrate") ~ "SCFA",
+    str_detect(Metabolite, "Formate") ~ "SCFA",
+    str_detect(Metabolite, "Propionate") ~ "SCFA",
+    str_detect(Metabolite, "Isovalerate") ~ "SCFA",
+    str_detect(Metabolite, "Maleate") ~ "SCFA",
+    str_detect(Metabolite, "Malonate") ~ "SCFA",
+    str_detect(Metabolite, "Pentanoate") ~ "SCFA",
+    TRUE ~ "Smet"),
+    Decision_Nle = replace_na(Decision_Nle,"ok"),
+    Decision_Ival = replace_na(Decision_Ival,"ok"))
+
+Results_SCFA <- dat_smet_norm %>%
+  filter(Type == "Sample" | Type == "PE" ) %>%
+  filter(Decision_Ival != "error" & Metab_type == "SCFA") 
+Results_Smet <- dat_smet_norm %>%
+  filter(Type == "Sample" | Type == "PE" ) %>%
+  filter(Decision_Ival != "error" & Metab_type == "Smet") 
+Results <- bind_rows(Results_Smet,Results_SCFA)
+
+Results_contaminated <- filter(Results, Bee_exp == "E") ## Remove contaminated batch
+
+# adjust pollen extract values to levels in the gut
+Results_NC <- filter(Results, Bee_exp != "E") %>%
+  filter(Sample != "QC9_PE10" & Sample != "QC8_PE10")%>%
+  mutate(Norm_resp=case_when(Condition == "PE"~4.3*Norm_resp,
+                             TRUE ~Norm_resp))
+```
+
+
+## Calculate average normalized responses by treatment group
+## Calculate fold changes and p-values vs reference group (MD)
+```{r, message = FALSE, warning=FALSE}
+results_group <- Results_NC %>%
+  group_by(Condition, Metabolite) %>%
+  summarise(med = median(Norm_resp),
+            sd = sd(Norm_resp),
+            n = n())
+
+results_group_wide <- results_group %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n))
+
+results_group_wide_Sn_SW <- results_group %>%
+  filter(Condition == "Sn_SW" | Condition == "MD_SW") %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n)) %>%
+  mutate(FC = med_Sn_SW / med_MD_SW,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_Sn_SW/med_Sn_SW)^2 + (sd_MD_SW/med_MD_SW)^2))
+
+results_group_wide_Sn_P <- results_group %>%
+  filter(Condition == "Sn_P" | Condition == "MD_P") %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n)) %>%
+  mutate(FC = med_Sn_P / med_MD_P,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_Sn_P/med_Sn_P)^2 + (sd_MD_P/med_MD_P)^2))
+
+results_group_wide_Gi_SW <- results_group %>%
+  filter(Condition == "Gi_SW" | Condition == "MD_SW") %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n)) %>%
+  mutate(FC = med_Gi_SW / med_MD_SW,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_Gi_SW/med_Gi_SW)^2 + (sd_MD_SW/med_MD_SW)^2))
+
+results_group_wide_Gi_P <- results_group %>%
+  filter(Condition == "Gi_P" | Condition == "MD_P") %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n)) %>%
+  mutate(FC = med_Gi_P / med_MD_P,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_Gi_P/med_Gi_P)^2 + (sd_MD_P/med_MD_P)^2))
+
+results_group_wide_Sn_Gi_SW <- results_group %>%
+  filter(Condition == "Sn_Gi_SW" | Condition == "MD_SW") %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n)) %>%
+  mutate(FC = med_Sn_Gi_SW / med_MD_SW,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_Sn_Gi_SW/med_Sn_Gi_SW)^2 + (sd_MD_SW/med_MD_SW)^2))
+
+results_group_wide_Sn_Gi_P <- results_group %>%
+  filter(Condition == "Sn_Gi_P" | Condition == "MD_P") %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n)) %>%
+  mutate(FC = med_Sn_Gi_P / med_MD_P,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_Sn_Gi_P/med_Sn_Gi_P)^2 + (sd_MD_P/med_MD_P)^2))
+
+results_group_wide_MD_P <- results_group %>%
+  filter(Condition == "MD_P" | Condition == "MD_SW") %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n)) %>%
+  mutate(FC = med_MD_P / med_MD_SW,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_MD_P/med_MD_P)^2 + (sd_MD_SW/med_MD_SW)^2))
+
+results_group_wide_PE <- results_group %>%
+  filter(Condition == "PE" | Condition == "MD_P") %>%
+  pivot_wider(names_from = Condition, values_from = c(med, sd, n)) %>%
+  mutate(FC = med_PE / med_MD_P,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_PE/med_PE)^2 + (sd_MD_P/med_MD_P)^2))
+
+p_value_sw <- Results_NC %>%
+  filter(Food == "SW") 
+
+p_value_sn_sw <- p_value_sw %>%
+  filter(Condition == "Sn_SW" | Condition == "MD_SW" ) 
+p_value_sn_sw <- compare_means(Norm_resp ~ Condition, data = p_value_sn_sw, 
+                group.by = "Metabolite", ref.group = "MD_SW", p.adjust.method = "BH")
+p_value_sn_sw <- p_value_sn_sw %>%
+    mutate(Log10_p = -log10(p)) %>%
+  rename(Condition = group2, Control = group1)
+
+p_value_gi_sw <- p_value_sw %>%
+  filter(Condition == "Gi_SW" | Condition == "MD_SW" ) 
+p_value_gi_sw <- compare_means(Norm_resp ~ Condition, data = p_value_gi_sw, 
+                group.by = "Metabolite", ref.group = "MD_SW", p.adjust.method = "BH")
+p_value_gi_sw <- p_value_gi_sw %>%
+    mutate(Log10_p = -log10(p)) %>%
+  rename(Condition = group2, Control = group1)
+
+p_value_sn_gi_sw <- p_value_sw %>%
+  filter(Condition == "Sn_Gi_SW" | Condition == "MD_SW" ) 
+p_value_sn_gi_sw <- compare_means(Norm_resp ~ Condition, data = p_value_sn_gi_sw, 
+                group.by = "Metabolite", ref.group = "MD_SW", p.adjust.method = "BH")
+p_value_sn_gi_sw <- p_value_sn_gi_sw %>%
+    mutate(Log10_p = -log10(p)) %>%
+  rename(Condition = group2, Control = group1)
+
+p_value_p <- Results_NC %>%
+  filter(Food == "P") 
+
+p_value_sn_p <- p_value_p %>%
+  filter(Condition == "Sn_P" | Condition == "MD_P" ) 
+p_value_sn_p <- compare_means(Norm_resp ~ Condition, data = p_value_sn_p, 
+                group.by = "Metabolite", ref.group = "MD_P", p.adjust.method = "BH")
+p_value_sn_p <- p_value_sn_p %>%
+    mutate(Log10_p = -log10(p)) %>%
+  rename(Condition = group2, Control = group1)
+
+p_value_gi_p <- p_value_p %>%
+  filter(Condition == "Gi_P" | Condition == "MD_P" ) 
+p_value_gi_p <- compare_means(Norm_resp ~ Condition, data = p_value_gi_p, 
+                group.by = "Metabolite", ref.group = "MD_P", p.adjust.method = "BH")
+p_value_gi_p <- p_value_gi_p %>%
+    mutate(Log10_p = -log10(p)) %>%
+  rename(Condition = group2, Control = group1)
+
+p_value_sn_gi_p <- p_value_p %>%
+  filter(Condition == "Sn_Gi_P" | Condition == "MD_P" ) 
+p_value_sn_gi_p <- compare_means(Norm_resp ~ Condition, data = p_value_sn_gi_p, 
+                group.by = "Metabolite", ref.group = "MD_P", p.adjust.method = "BH")
+p_value_sn_gi_p <- p_value_sn_gi_p %>%
+    mutate(Log10_p = -log10(p)) %>%
+  rename(Condition = group2, Control = group1)
+
+p_value_md <- Results_NC %>%
+  filter(Condition == "MD_SW" | Condition == "MD_P") 
+p_value_md <- compare_means(Norm_resp ~ Condition, data = p_value_md, 
+                group.by = "Metabolite", ref.group = "MD_SW", p.adjust.method = "BH")
+p_value_md <- p_value_md %>%
+    mutate(Log10_p = -log10(p)) %>%
+  rename(Condition = group2, Control = group1)
+
+p_value_pe <- Results_NC %>%
+  filter(Condition == "PE" | Condition == "MD_P") %>%
+  filter(Metabolite != "Glutarate" & Metabolite != "Propanoate")
+p_value_pe <- compare_means(Norm_resp ~ Condition, data = p_value_pe, 
+                group.by = "Metabolite", ref.group = "MD_P", p.adjust.method = "BH")
+p_value_pe <- p_value_pe %>%
+    mutate(Log10_p = -log10(p)) %>%
+  rename(Condition = group2, Control = group1)
+
+results_group_wide_Sn_SW <- merge(results_group_wide_Sn_SW, p_value_sn_sw, by=c("Metabolite")) %>%
+  rename(med_Condition = med_Sn_SW, sd_Condition = sd_Sn_SW, n_Condition = n_Sn_SW, 
+         med_Control = med_MD_SW, sd_Control = sd_MD_SW, n_Control = n_MD_SW)
+
+results_group_wide_Gi_SW <- merge(results_group_wide_Gi_SW, p_value_gi_sw, by=c("Metabolite")) %>%
+  rename(med_Condition = med_Gi_SW, sd_Condition = sd_Gi_SW, n_Condition = n_Gi_SW, 
+         med_Control = med_MD_SW, sd_Control = sd_MD_SW, n_Control = n_MD_SW)
+
+results_group_wide_Sn_Gi_SW <- merge(results_group_wide_Sn_Gi_SW, p_value_sn_gi_sw, by=c("Metabolite")) %>%
+  rename(med_Condition = med_Sn_Gi_SW, sd_Condition = sd_Sn_Gi_SW, n_Condition = n_Sn_Gi_SW, 
+         med_Control = med_MD_SW, sd_Control = sd_MD_SW, n_Control = n_MD_SW)
+
+results_group_wide_Sn_P <- merge(results_group_wide_Sn_P, p_value_sn_p, by=c("Metabolite")) %>%
+  rename(med_Condition = med_Sn_P, sd_Condition = sd_Sn_P, n_Condition = n_Sn_P, 
+         med_Control = med_MD_P, sd_Control = sd_MD_P, n_Control = n_MD_P)
+
+results_group_wide_Gi_P <- merge(results_group_wide_Gi_P, p_value_gi_p, by=c("Metabolite")) %>%
+  rename(med_Condition = med_Gi_P, sd_Condition = sd_Gi_P, n_Condition = n_Gi_P, 
+         med_Control = med_MD_P, sd_Control = sd_MD_P, n_Control = n_MD_P)
+
+results_group_wide_Sn_Gi_P <- merge(results_group_wide_Sn_Gi_P, p_value_sn_gi_p, by=c("Metabolite")) %>%
+  rename(med_Condition = med_Sn_Gi_P, sd_Condition = sd_Sn_Gi_P, n_Condition = n_Sn_Gi_P, 
+         med_Control = med_MD_P, sd_Control = sd_MD_P, n_Control = n_MD_P)
+
+results_group_wide_MD_P <- merge(results_group_wide_MD_P, p_value_md, by=c("Metabolite")) %>%
+  rename(med_Condition = med_MD_P, sd_Condition = sd_MD_P, n_Condition = n_MD_P, 
+         med_Control = med_MD_SW, sd_Control = sd_MD_SW, n_Control = n_MD_SW)
+
+results_sig <- rbind(results_group_wide_Sn_SW,results_group_wide_Sn_P)
+results_sig <- rbind(results_sig,results_group_wide_Gi_SW)
+results_sig <- rbind(results_sig,results_group_wide_Gi_P)
+results_sig <- rbind(results_sig,results_group_wide_Sn_Gi_SW)
+results_sig <- rbind(results_sig,results_group_wide_Sn_Gi_P)
+results_sig <- rbind(results_sig,results_group_wide_MD_P)
+
+Substrates <- data.frame(Metabolite = c("3-Hydroxy-3-methylglutarate", "alpha-Ketoglutarate", "Citrate", "Gamma-Aminobutyrate", "Glycerate", "Acetate", "Malate", "Succinate", "Fumarate", "Pyruvate", "Hypoxanthine", "Lactate", "Caffeic_acid"),
+                        Substrate= c("Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes"))
+
+results_sig_PE <- merge(results_group_wide_PE, p_value_pe, by=c("Metabolite")) %>%
+  rename(med_Condition = med_PE, sd_Condition = sd_PE, n_Condition = n_PE, 
+         med_Control = med_MD_P, sd_Control = sd_MD_P, n_Control = n_MD_P)%>%
+  left_join(Substrates, by = "Metabolite")%>%
+  mutate(Substrate=replace_na(Substrate,"No"))
+
+results_sig$Abundance <- "NO"
+results_sig$Abundance[results_sig$Log_FC > 0.6 & results_sig$p < 0.05] <- "UP"
+results_sig$Abundance[results_sig$Log_FC < -0.6 & results_sig$p < 0.05] <- "DOWN"
+  
+results_sig$siglabel <- NA
+results_sig$Metabolite <- as.character(results_sig$Metabolite)
+results_sig$siglabel[results_sig$p < 0.05] <- results_sig$Metabolite[results_sig$p < 0.05]
+  
+results_sig$siglabel <- factor(results_sig$siglabel)
+
+results_sig$Condition <- factor(results_sig$Condition, 
+                                     levels = c("MD_P", "Sn_SW", "Sn_P", "Gi_SW", "Gi_P", "Sn_Gi_SW", "Sn_Gi_P"))
+results_sig$Abundance <- factor(results_sig$Abundance, 
+                                     levels = c("UP", "DOWN", "NO"))
+Host <- results_sig %>%
+  filter(Condition == "Sn_SW" | Condition == "Sn_P")%>%
+  filter(Abundance == "DOWN")
+
+Diet <- results_sig %>%
+  filter(Condition == "MD_P" | Condition == "Sn_P")
+  
+Microbe <- results_sig %>%
+  filter(Condition %in% c("Sn_Gi_SW","Sn_Gi_P","Gi_SW","Gi_P"))
+
+
+results_sig_sn <- results_sig %>%
+  filter(Condition == "Sn_SW" | Condition == "Sn_P" ) 
+
+results_sig_1 <- results_sig %>%
+  filter(Condition != "MD_P") %>%
+  mutate(Food = case_when(str_detect(Condition, "_P") ~ "Pollen",
+                          TRUE ~ "Sugar water"),
+         Colonization = case_when(str_detect(Condition, "Sn_SW") ~ "Sn",
+                                  str_detect(Condition, "Sn_P") ~ "Sn",
+                                  str_detect(Condition, "Sn_Gi_SW") ~ "Sn+Gi",
+                                  str_detect(Condition, "Sn_Gi_P") ~ "Sn+Gi",
+                                  TRUE ~ "Gi" ),
+         Food = fct_relevel(Food, "Sugar water", "Pollen"),
+         Colonization = fct_relevel(Colonization, "Sn", "Sn+Gi", "Gi"))%>%
+  ungroup() %>%
+    add_count(siglabel, name = "Shared")
+  results_sig_1$Shared[results_sig_1$Shared == 1236] <- 0
+    results_sig_1 <- results_sig_1 %>%
+      mutate(siglabel = case_when(Shared > 2 ~siglabel, TRUE ~ NA_integer_))
+
+Sig_count <- results_sig %>%
+  group_by(Condition) %>%
+  summarise(Total = n(),
+            Higher = sum(Abundance == "UP")/Total,
+            Lower = sum(Abundance == "DOWN")/Total,
+            Same = sum(Abundance == "NO")/Total)
+```
+
+
+## Generate volcano-plots. Figure 1B, Figure S2
+```{r, echo=FALSE, warning=FALSE}
+library(ggrepel)
+
+  ggplot(data=results_sig, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
+   geom_point(alpha = 0.7, size=1, stroke=0) + 
+   #geom_text_repel(size=2.0, force=3) +
+   theme(text=element_text(size=8,  family="Arial"),
+        panel.background = element_rect(fill = "white", colour = "grey50"),
+        panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        axis.text.x = element_text(color = "black", size=5, angle = 90, vjust= 0.5), axis.text.y = element_text(color = "black", size=8),
+        axis.title.x =element_text(color = "black", size=8), axis.title.y =element_text(color = "black", size=8),
+         legend.position = "none")+
+   geom_vline(xintercept=c(-0.6, 0.6), col="#3F5151", linetype = "dotted") +
+   geom_hline(yintercept=-log10(0.05), col="#3F5151", linetype = "dotted") +
+   scale_x_continuous(name="Log2 (Fold Change)",limits=c(-12,12), breaks=seq(-12, 12, 3))+
+   scale_y_continuous(name="-Log10 (p-value)",limits=c(0,7), breaks=seq(0, 7, 1))+
+   scale_color_manual(values=c("orangered1","steelblue2", "grey70")) +
+   facet_wrap(~Condition, nrow =1, labeller = as_labeller(c("MD_P"="MD (P)", "Sn_SW"="Sn","Sn_P"="Sn (P)","Gi_SW"="Gi", 
+                                                            "Gi_P"="Gi (P)","Sn_Gi_SW"="Sn+Gi","Sn_Gi_P"="Sn+Gi (P)")))
+ 
+ #  ggsave("Sn_All_volcano_facet_v2.pdf",device=cairo_pdf, width=6, height= 3, units = "in", dpi = 300) 
+  
+ ggplot(data=results_sig_1, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
+   geom_point(alpha = 0.7, size=1.0, stroke=0) + 
+   #geom_text_repel(size=1.0, force=1, nudge_y = 0.5) +
+   theme(panel.background = element_rect(fill = "white", colour = "grey50"),
+         strip.background = element_rect(fill="white", size = 3),
+         strip.text=element_text(color = "black", size=8),
+         legend.position = "none", 
+         axis.text.x = element_text(color = "black", size=6),
+         axis.text.y = element_text(color = "black", size=6),
+         axis.title.x = element_text(color = "black",size = 8, face = "bold"), 
+         axis.title.y = element_text(color = "black",size = 8, face = "bold")) +
+   geom_vline(xintercept=c(-0.6, 0.6), col="#3F5151", linetype = "dashed", size=0.25) +
+   geom_hline(yintercept=-log10(0.05), col="#3F5151", linetype = "dashed", size =0.25) +
+   geom_text(size=1.0, nudge_y = 0.25) +
+   scale_x_continuous(name="Log2 (Fold Change)",limits=c(-10,10), breaks=seq(-10, 10, 5))+
+   scale_y_continuous(name="-Log10 (p-Value)",limits=c(0,6), breaks=seq(0, 6, 1))+
+   scale_color_manual(values=c("orangered1","steelblue2", "grey70")) +
+   facet_grid(vars(Food), vars(Colonization))
+ # ggsave("Sn_Gi_volcano_facet_4.pdf",device=cairo_pdf, width=6, height= 4, units = "in", dpi = 300) 
+ 
+   ggplot(data=results_sig_sn, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
+   geom_point(alpha = 0.7, size=1.5, stroke=0) + 
+   #geom_text_repel(size=1.0, force=1, nudge_y = 0.5) +
+   theme(panel.background = element_rect(fill = "white", colour = "grey50"),
+         strip.background = element_rect(fill="white", size = 3),
+         strip.text=element_text(color = "black", size=8),
+         legend.position = "none", 
+         axis.text.x = element_text(color = "black", size=6),
+         axis.text.y = element_text(color = "black", size=6),
+         axis.title.x = element_text(color = "black",size = 8, face = "bold"), 
+         axis.title.y = element_text(color = "black",size = 8, face = "bold")) +
+   geom_vline(xintercept=c(-0.6, 0.6), col="#3F5151", linetype = "dashed", size=0.25) +
+   geom_hline(yintercept=-log10(0.05), col="#3F5151", linetype = "dashed", size =0.25) +
+   scale_x_continuous(name="Log2 (Fold Change)",limits=c(-10,10), breaks=seq(-10, 10, 5))+
+   scale_y_continuous(name="-Log10 (p-Value)",limits=c(0,6), breaks=seq(0, 6, 1))+
+   scale_color_manual(values=c("orangered1","steelblue2", "grey70")) +
+   facet_wrap(~Condition, nrow =1, labeller = as_labeller(c("Sn_SW"="Sugar Water", "Sn_P"="Pollen")))
+ #  ggsave("Sn_volcano_facet_F2.pdf",device=cairo_pdf, width=4, height= 3, units = "in", dpi = 300) 
+
+
+   
+```
+
+##Calculate Z-Scores of metabolites
+```{r, message = FALSE, warning=FALSE}
+
+Results_NC_samples <- Results_NC %>%
+  filter(Type != "PE")%>%
+  group_by(Metabolite) %>%
+  mutate(z_score = (Norm_resp - mean(Norm_resp, na.rm = TRUE))/sd(Norm_resp, na.rm = TRUE),
+         LOD = (1-mean(Norm_resp, na.rm = TRUE))/sd(Norm_resp, na.rm = TRUE)) %>%
+  ungroup(Metabolite)
+
+Results_NC_samples$Condition <- factor(Results_NC_samples$Condition, 
+                                     levels = c("MD_SW", "MD_P", "Sn_SW", "Sn_P", "Gi_SW", "Gi_P", "Sn_Gi_SW", "Sn_Gi_P"))
+```
+
+
+## Test for differentially abundant metabolites using mixed linear models
+### Implement mixed linear model of lmm2met
+#### Variables: Fixed (colonization and injection order), Random (batch) 
+
+```{r, message=FALSE, warning=FALSE}
+metabdf <- Results_NC_samples %>%
+  select(Sample, Metabolite) %>%
+  filter(Sample == "A12FF5")
+metabdf$metabID<-1:nrow(metabdf)
+metabdf$metabID = paste0('X', metabdf$metabID)
+metabdf$metabID <- factor(metabdf$metabID)
+
+metabdf <- metabdf %>%
+  select(Metabolite, metabID)
+
+metab_lmm <- Results_NC_samples %>%
+  select(Sample,Bee_exp,Condition,Food,Metabolite,z_score) %>%
+  mutate(Sn=case_when(str_detect(Condition,"Sn")~1,
+                      TRUE ~ 0),
+         Gi=case_when(str_detect(Condition,"Gi")~1,
+                      TRUE ~ 0))%>%
+  full_join(metabdf) %>%
+  ungroup() %>%
+  group_by(metabID) %>%
+  select(Sample, Bee_exp, Sn, Gi, Food, metabID, z_score) %>%
+  pivot_wider(names_from = metabID, values_from = z_score)%>%
+  replace(is.na(.), 0)
+
+
+metab_lmm$Food <- factor(metab_lmm$Food, levels = c("SW", "P"))
+metab_lmm$Sn <- factor(metab_lmm$Sn)
+metab_lmm$Gi <- factor(metab_lmm$Gi)
+metab_lmm$Bee_exp <- factor(metab_lmm$Bee_exp)
+
+library(lmm2met)
+fitMet = fitLmm(fix= c('Food','Sn',"Gi"), random='(1|Bee_exp)', data=metab_lmm, start=6, end=239)
+
+plot(fitMet, type='coeff')
+
+plot(fitMet, type='residual') 
+
+plot(fitMet, type='fixeff')
+
+plot(fitMet, type='randeff') 
+
+plot(fitMet, type='chisq')
+
+getFixCoeff(fitMet, save=TRUE) 
+
+list2env(fitMet,envir = .GlobalEnv)
+
+fittedDat_long <- fittedDat %>%
+  pivot_longer(cols =  c("X1":"X234"),
+               names_to = "Metabolite",
+               values_to = "FittedDat",
+               values_drop_na = FALSE)
+```
+## Adjust p-values from previous chunk to account for multiple testing
+## output.csv generated in previous chunk
+```{r, message=FALSE, warning=FALSE}
+lmm_output_csv <- read_csv("output.csv")
+lmm_output <- lmm_output_csv %>% 
+  rename(p_Diet = "Pr(Chi).Food", metabID = 1, p_Sn = "Pr(Chi).Sn",p_Gi = "Pr(Chi).Gi",Sn="Sn1",Gi="Gi1", Pollen="FoodP") %>%
+  mutate(p_Diet_adj = p.adjust(p_Diet, method="BH",n = length(p_Diet)),
+    Log10_p_Diet = -log10(p_Diet_adj),
+    p_Sn_adj = p.adjust(p_Sn, method="BH",n = length(p_Sn)),
+    Log10_p_Sn = -log10(p_Sn_adj),
+    p_Gi_adj = p.adjust(p_Gi, method="BH",n = length(p_Gi)),
+    Log10_p_Gi = -log10(p_Gi_adj)) %>%
+  left_join(metabdf) %>%
+  mutate(Species_Significance = case_when((p_Sn_adj < 0.05) & (p_Gi_adj >= 0.05)  ~ "Sn",
+                                  (p_Sn_adj >= 0.05) & (p_Gi_adj < 0.05)  ~ "Gi",
+                                  (p_Sn_adj < 0.05) & (p_Gi_adj < 0.05)  ~ "Both",
+                                  TRUE ~ "NS"),
+         Diet_Significance = case_when((p_Diet_adj < 0.05) ~ "Pollen",
+                                       TRUE ~ "NS"))%>%
+  unite("Significance", Species_Significance:Diet_Significance, remove = FALSE)
+
+lmm_output$siglabel <- NA
+lmm_output$Metabolite <- as.character(lmm_output$Metabolite)
+lmm_output$siglabel[lmm_output$p_Sn <= .05] <- lmm_output$Metabolite[lmm_output$p_Sn <= .05]
+
+lmm_output_sig <- lmm_output %>%
+  filter(Species_Significance != "NS") 
+```
+
+
+## Generate fixed effects plot for Figure 1C
+```{r, echo=FALSE, warning=FALSE}
+
+ggplot(data=lmm_output_sig, aes(x=Sn, y=Gi, color=Pollen, label=siglabel)) + 
+  geom_vline(xintercept=0, col="black", linetype = "solid") +
+  geom_hline(yintercept=0, col="black", linetype = "solid") +
+  geom_vline(xintercept=-.4, col="grey", linetype = "dashed", size=0.25) +
+  geom_vline(xintercept=.4, col="grey", linetype = "dashed", size=0.25) +
+  geom_hline(yintercept=-.4, col="grey", linetype = "dashed", size=0.25) +
+  geom_hline(yintercept=.4, col="grey", linetype = "dashed", size=0.25)+
+  geom_point(size=1) +
+  theme(panel.background = element_rect(fill = "white", colour = "black"),
+        panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        strip.background = element_rect(fill="white",colour = "black"),
+        legend.position = "right",
+        axis.text.x = element_text(color = "black", size=6),
+        axis.text.y = element_text(color = "black", size=6),
+        axis.title.x = element_text(color = "black", size=8), 
+        axis.title.y = element_text(color = "black", size=8),
+        legend.text=element_text(color = "black", size=6),
+        legend.title=element_text(color = "black", size=6))+
+  geom_text_repel(size = 2, max.overlaps = Inf, color="slategrey")+
+    binned_scale(aesthetics = "color",
+               scale_name = "stepsn", 
+               palette = function(x) c( "#313695","#4575B4","#74ADD1","#ABD9E9","grey",
+                                        "#FDAE61","#F46D43","#D73027","#A50026"),
+               breaks = c(-1.25, -1, -.75, -.5, .5, .75, 1, 1.25),
+               limits = c(-1.5, 1.5),
+               show.limits = TRUE, 
+               guide = "colorsteps")+
+  scale_x_continuous(name="Effect Size (S. alvi)",limits=c(-1.25,1.25), 
+                     breaks=seq(-1.25,1.25, 0.25), labels = scales::comma)+
+  scale_y_continuous(name="Effect Size (Gilliamella)",limits=c(-1.25,1.25), 
+                     breaks=seq(-1.25,1.25, 0.25), labels =  scales::comma)
+#ggsave("Effect_size_1C.pdf",device=cairo_pdf, width=5, height= 3, units = "in", dpi = 300) 
+
+```
+
+
+## Generate plots for Figure S3
+```{r, echo=FALSE, warning=FALSE}   
+ggplot(subset(Results_NC_samples, Metabolite %in% c("Fumarate", "Acetate")),
+    mapping = aes(x = Condition, y = z_score, fill = Condition)) +
+  geom_boxplot(na.rm = TRUE, alpha = 1, outlier.shape = NA, lwd=0.25) +
+  geom_jitter(width = 0.15, height = 0, size=0.5, alpha=0.5) +
+  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", "skyblue","royalblue", "palegreen", "forestgreen")) +
+  stat_n_text(na.rm = TRUE, size = 2, y.pos = -1 ) +
+  geom_hline(aes(yintercept=LOD), col="#3F5151", linetype = "dotted") +
+  theme(panel.background = element_rect(fill = "white", colour = "black"),
+        panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        strip.background = element_rect(fill="white",colour = "black"),
+        legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(color = "black", size=8),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(),
+        strip.text.x = element_text(size = 6)) +
+  scale_y_continuous(limits=c(-1.5,5.5), breaks=seq(-2, 6, 1)) +
+  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+ 
+  stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
+                     label.y = 5.0, color = "grey") +
+    stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
+                     label.y = 5.25, color = "slategrey") +
+  facet_wrap(~Metabolite,nrow=1)
+#   ggsave("Fum_Ace_z_score.pdf",device=cairo_pdf, width=3.5, height= 2, units = "in", dpi = 300)     
+  
+ ggplot(subset(Results_NC_samples, Metabolite %in% c("alpha-Ketoglutarate", "3-Hydroxy-3-methylglutarate")),
+         mapping = aes(x = Condition, y = z_score, fill = Condition)) +
+  geom_boxplot(na.rm = TRUE, alpha = 1, outlier.shape = NA, lwd=0.25) +
+  geom_jitter(width = 0.15, height = 0, size=1, alpha=0.5, stroke=0) +
+  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", "skyblue","royalblue", "palegreen", "forestgreen")) +
+  stat_n_text(na.rm = TRUE, size = 2, y.pos = -1 ) +
+  geom_hline(aes(yintercept=LOD), col="#3F5151", linetype = "dotted") +
+  theme(panel.background = element_rect(fill = "white", colour = "black"),
+        panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        strip.background = element_rect(fill="white",colour = "black"),
+        legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(color = "black", size=8),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(),
+        strip.text.x = element_text(size = 6)) +
+  scale_y_continuous(limits=c(-1.25,5.5), breaks=seq(-1, 5, 1)) +
+  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+ 
+  stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
+                     label.y = 5.0, color = "grey") +
+    stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
+                     label.y = 5.25, color = "slategrey") +
+  facet_wrap(~Metabolite,nrow=1)
+ # ggsave("aKG_3Hmg_z_score.pdf", device=cairo_pdf, width=3.5, height= 2, units = "in", dpi = 300)     
+  
+ ggplot(subset(Results_NC_samples, Metabolite %in% c("Lactate", "Pyruvate")),
+          mapping = aes(x = Condition, y = z_score, fill = Condition)) +
+  geom_boxplot(na.rm = TRUE, alpha = 1, outlier.shape = NA, lwd=0.25) +
+  geom_jitter(width = 0.15, height = 0, size=1, alpha=0.5, stroke=0) +
+  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", "skyblue","royalblue", "palegreen", "forestgreen")) +
+  stat_n_text(na.rm = TRUE, size = 2, y.pos = -1 ) +
+  geom_hline(aes(yintercept=LOD), col="#3F5151", linetype = "dotted") +
+  theme(panel.background = element_rect(fill = "white", colour = "black"),
+        panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        strip.background = element_rect(fill="white",colour = "black"),
+        legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(color = "black", size=8),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(),
+        strip.text.x = element_text(size = 6)) +
+  scale_y_continuous(limits=c(-1.25,5.5), breaks=seq(-1, 5, 1)) +
+  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+ 
+  stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
+                     label.y = 5.0, color = "grey") +
+    stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
+                     label.y = 5.25, color = "slategrey") +
+  facet_wrap(~Metabolite,nrow=1)
+ # ggsave("Lac_Pyr_z_score.pdf",device=cairo_pdf, width=3.5, height= 2, units = "in", dpi = 300)   
+ 
+ ggplot(subset(Results_NC_samples, Metabolite %in% c("Citrate", "Glycerate")),
+         mapping = aes(x = Condition, y = z_score, fill = Condition)) +
+  geom_boxplot(na.rm = TRUE, alpha = 1, outlier.shape = NA, lwd=0.25) +
+  geom_jitter(width = 0.15, height = 0, size=1, alpha=0.5, stroke=0) +
+  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", "skyblue","royalblue", "palegreen", "forestgreen")) +
+  stat_n_text(na.rm = TRUE, size = 2, y.pos = -1 ) +
+  geom_hline(aes(yintercept=LOD), col="#3F5151", linetype = "dotted") +
+  theme(panel.background = element_rect(fill = "white", colour = "black"),
+        panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        strip.background = element_rect(fill="white",colour = "black"),
+        legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(color = "black", size=8),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(),
+        strip.text.x = element_text(size = 6)) +
+  scale_y_continuous(limits=c(-1.25,5.5), breaks=seq(-1, 5, 1)) +
+  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+ 
+  stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
+                     label.y = 5.0, color = "grey") +
+    stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
+                     label.y = 5.25, color = "slategrey") +
+  facet_wrap(~Metabolite,nrow=1)
+ # ggsave("Cit_Glyc_z_score.pdf",device=cairo_pdf, width=3.5, height= 2, units = "in", dpi = 300)    
+```
+
+## Fig 2A: Compare Metabolite Abundances in Pollen Extract vs Bee Guts
+### Bees consumed ~21 mg Pollen
+### Gut samples contain 4.3X more pollen than in same volume of Extract 
+```{r, message = FALSE, warning=FALSE} 
+Results_PE <- Results_NC %>%
+  filter(Condition == "PE" | Condition == "MD_SW" | Condition == "MD_P")%>%
+  mutate(Norm_resp_pe = case_when(Type == "PE" ~ 4.3*Norm_resp,
+                                  TRUE ~ Norm_resp)) %>%
+  select(Metabolite,Sample,Condition,Norm_resp_pe)
+
+Group_mean <-Results_PE %>%
+  group_by(Metabolite,Condition)%>%
+  summarise(Avg = mean(Norm_resp_pe),
+            Sd = sd(Norm_resp_pe))%>%
+  pivot_wider(names_from="Condition", values_from = c("Avg", "Sd"))%>%
+  mutate(Rel_MD_SW = Avg_MD_SW / Avg_MD_P,
+         Rel_PE = Avg_PE / Avg_MD_P,
+         stdev_MD_SW = Rel_MD_SW*sqrt((Sd_MD_SW/Avg_MD_SW)^2+(Sd_MD_P/Avg_MD_P)^2),
+         stdev_PE = Rel_PE*sqrt((Sd_PE/Avg_PE)^2+(Sd_MD_P/Avg_MD_P)^2))%>%
+  pivot_longer(
+   cols = starts_with("Rel_"),
+   names_to = "Condition",
+   names_prefix = "Rel_",
+   values_to = "Frac_abundance",
+   values_drop_na = TRUE) 
+
+
+Group_mean_plot <- Group_mean %>%
+    filter(Metabolite %in% c("3-Hydroxy-3-methylglutarate", "alpha-Ketoglutarate",
+                           "Aspartate","Citrate","Fumarate","Glutamate","Glycerate",
+                           "Kynurenine","Lactate","Malate","Putrescine","Pyruvate", "Alanine", "Methionine",                                 "Phenylalanine", "Tyrosine", "Valine", "Caffeic_acid"))%>%
+  mutate(Condition= fct_relevel(Condition, "PE", "MD_SW"),
+         Metabolite = fct_recode(Metabolite, "3HMG" = "3-Hydroxy-3-methylglutarate", "a-Ketoglutarate" = "alpha-Ketoglutarate"))
+
+ggplot(Group_mean_plot, mapping = aes(x = fct_reorder(Metabolite, Frac_abundance), y = Frac_abundance, fill = Condition)) +
+  geom_col(size=1, alpha=1, stroke=0) +
+  geom_hline(yintercept=1, color="black",size=0.5)+
+  scale_fill_manual(values=c("grey60", "grey30")) +
+   theme(panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        panel.background = element_rect(fill = "white", colour = "grey50"), 
+        axis.text.x = element_text(color = "black", size=6, angle=45, hjust=0.95, vjust=0.95), 
+        axis.text.y = element_text(color = "black", size=6),
+        axis.title.x =element_text(color = "black", size=8),
+        axis.title.y =element_text(color = "black", size=8),
+        legend.text = element_text(color = "black", size=8), 
+        legend.title = element_text(color = "black", size=8),
+        legend.position = c(0.7, 0.75),
+        legend.key.size = unit(0.15, 'cm'),
+        plot.title = element_text(hjust = 0.5, size=8))+
+  scale_y_continuous(name="Fractional Abundance vs Pollen Filled Guts",limits=c(0,9), breaks=seq(0, 9, 0.5))+
+  scale_x_discrete(name="Metabolite")
+#ggsave("Fig2a_Frac_abundance.pdf" ,device=cairo_pdf, width=5, height= 3, units = "in", dpi = 300)
+
+
+
+```
+
