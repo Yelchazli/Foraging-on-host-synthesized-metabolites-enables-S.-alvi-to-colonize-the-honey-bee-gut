@@ -1,0 +1,463 @@
+---
+title: "NanoSIMS_analysis"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+knitr::opts_chunk$set(fig.width=120, fig.height=80) 
+```
+
+```{r, echo = F}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
+```
+
+```{r wrap-hook, eval=T}
+library(knitr)
+hook_output = knit_hooks$get('output')
+knit_hooks$set(output = function(x, options) {
+  # this hook is used only when the linewidth option is not NULL
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    # any lines wider than n should be wrapped
+    if (any(nchar(x) > n)) x = strwrap(x, width = n)
+    x = paste(x, collapse = '\n')
+  }
+  hook_output(x, options)
+})
+```
+
+#### These are the required package to reproduce this analysis.
+
+```{r, echo = T, eval=T, message=F, warning=F, results=F}
+
+### env setup
+
+required_packages = c("dplyr", "data.table", "ggplot2", "readxl", "ggbeeswarm", "ggpubr", "EnvStats", "tidyverse", "patchwork", "ggforce", "wesanderson", "RcolorBrewer", "extrafont", "ggthemes" ,"egg", "officer", "rvg","ggh4x",
+"grid")
+need_install = required_packages[!(required_packages) %in% installed.packages()]
+
+if (length(need_install) > 0){
+  install.packages((need_install))
+}
+
+# Load packages
+lapply(required_packages, require, character.only=T)
+
+dir_script = dirname(rstudioapi::getSourceEditorContext()$path)
+
+setwd(dir_script)
+#font_import()
+#loadfonts(device="win")
+
+```
+  
+  
+
+#### **Tidying up the data and adding metadata to the dataset**
+
+
+##### 1. Calculate the atom % enrichment as well as the delta value for both species measured
+
+##### 2. Produce quality check plots 
+
+##### 3. Produce plot for supplementary and main text figures
+
+```{r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7}
+
+## Load the data
+
+dat= fread("NanoSIMS_data.csv", header = T)
+
+## Needed only if interested in the 13C12C ratio
+#dat[, ratio_13c12c:=`13C 12C /12C2`/mean(`13C 12C /12C2`[Label=="12C"]), ] ## Calculate mean of the ratio 1 
+
+#dat[, delta_13c12c:=(`13C 12C /12C2`/mean(`13C 12C /12C2`[Label=="12C"])-1)*1000, ] ## Calculate delta permil
+
+
+## Calculate the ratio by dividing the ratio of labeled and labeled samples (12C)
+dat[, ratio_14N13c :=dat$`14N 13C /14N 12C` /dat$`14N 13C /14N 12C`[Label=="12C"], ] 
+
+dat$ratio_14N13c
+
+## Calculate delta permil by removing 1 to the ratio and multiplying by 1000
+
+dat[, delta_14N13c:=(`14N 13C /14N 12C`/mean(`14N 13C /14N 12C`[Label=="12C"], na.rm=T)-1)*1000, ] 
+
+dat$delta_14N13c
+
+## calculate the percentage of 13C enrichment in 1 sample
+dat[, atpercent_14N13c:=100*(`14N 13C`)/(`14N 13C`+`14N 12C`) ]
+## Explore the data 
+min(dat$atpercent_14N13c, na.rm=T)
+
+max(dat$atpercent_14N13c, na.rm=T)
+
+head(dat)
+
+
+```
+ 
+#### Quick check at the correlation between the two measured molecular weights
+```{r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7, message=FALSE}
+
+## Correlation between the ratio of 14N13C/14N12C and 13C12C/12C2
+(ggplot(dat, aes(x=dat$`14N 13C /14N 12C`, dat$`13C 12C /12C2`), colour=dat$Sample)+
+  geom_point(mapping = aes(colour=dat$Sample))+
+  geom_smooth(method="lm", size=0.5, colour="black")+
+  theme_light()+
+  scale_y_continuous(breaks = seq(0, 0.15, by = 0.01))+
+  scale_x_continuous(breaks = seq(0, 0.1, by = 0.01))+
+  ylab("13C12C/12C2 ratio")+
+  scale_colour_brewer(palette="Set1"))+
+  labs(colour='Sample') +
+  ggtitle("Ratio correlation")+
+  xlab("14N13C/14N12C ratio")+
+  stat_cor()+
+  theme(text=element_text(family="Arial", face="bold", size=12))
+
+ggsave("Ratios_correlation.pdf", device=cairo_pdf)
+
+## Correlation between the counts of 14N12C and 12C2
+
+(ggplot(dat, aes(x=dat$`12C2`, dat$`14N 12C`), colour=dat$Sample)+
+  geom_point(mapping = aes(colour=dat$Sample))+
+  geom_smooth(method="lm", size=0.5, colour="black")+
+  theme_light()+
+  scale_y_continuous(breaks = seq(0, 0.15, by = 0.01))+
+  scale_x_continuous(breaks = seq(0, 0.1, by = 0.01))+
+  ylab("14N12C counts")+
+  scale_colour_brewer(palette="Set1"))+
+  labs(colour='Sample') +
+  ggtitle("Species correlation")+
+  xlab("12C2 counts")+
+  stat_cor()+
+  theme(text=element_text(family="Arial", face="bold", size=12))
+
+```
+
+
+#### Quick check of different metrics to assess acquisition batch and experiment effects
+```{r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7}
+
+## Evaluation of error per batch
+(ggplot(dat, aes(x=as.factor(dat$`Date acquired`), dat$`ER-14N 13C /14N 12C`, colour=dat$Tissue))+
+  geom_quasirandom(dodge.width = 0.5)+
+  theme_light()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  labs(colour='Sample') +
+  scale_y_continuous(breaks = seq(0, 0.0016, by = 0.0001))+
+  ylab("14N13C/14N12C error")+
+  xlab("Batch")+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial", face="bold", size=12))
+)
+
+## Evaluation of 14N12C counts per Acquisition date
+
+(ggplot(dat, aes(x=as.factor(dat$`Date acquired`), dat$`14N 12C`))+
+  geom_boxplot()+
+  geom_quasirandom(dodge.width = 0.5)+
+  theme_light()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  labs(colour='Sample') +
+  ylab("14N12C counts")+
+  xlab("Date acquired")+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial", face="bold", size=12))
+)
+
+## Evaluation of the 14N13C counts per Acquisition date
+(ggplot(dat, aes(x=as.factor(dat$`Date acquired`), dat$`14N 13C`))+
+  geom_boxplot(aes(group=`Date acquired`))+
+  geom_quasirandom(dodge.width = 0.5)+
+  theme_light()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  labs(colour='Sample') +
+  ylab("14N13C")+
+  xlab("Date acquired")+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial", face="bold", size=12))
+)
+
+
+## Evaluation of 12C2 counts per Acquisition date
+(ggplot(dat, aes(x=as.factor(dat$`Date acquired`), dat$`12C2`))+
+  geom_boxplot(aes(group=`Date acquired`))+
+  geom_quasirandom(dodge.width = 0.5)+
+  theme_light()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  labs(colour='Sample') +
+  ylab("12C2 counts")+
+  xlab("Date acquired")+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial", face="bold", size=12))
+)
+
+## Evaluation of the at_percent between 13C and 12C samples controls
+(ggplot(dat, aes(x=Tissue, atpercent_14N13c))+
+  geom_quasirandom(dodge.width = 0.5)+
+  theme_light()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  ylab("At% 13C")+ 
+  xlab("Tissue")+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial", face="bold", size=12))+
+  facet_wrap(~Label)
+)
+
+## sum of 14N12C and 14N13C per image file
+(ggplot(dat, aes(x=as.character(dat$IMAGEFILE), y=dat$`14N 12C`+dat$`14N 13C`))+
+  geom_quasirandom(dodge.width = 0.5)+
+  theme_light()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  labs(colour='Sample') +
+  ylab("14N12C+14N13C counts")+
+  xlab("Image")+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial", face="bold", size=12))
+)
+
+## sum of 14N12C and 14N13C per acqusition date
+(ggplot(dat, aes(x=as.character(dat$`Date acquired`), y=dat$`14N 12C`+dat$`14N 13C`))+
+  geom_boxplot()+
+  geom_quasirandom(dodge.width = 0.5)+
+  theme_light()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  labs(colour='Sample') +
+  ylab("14N12C+14N13C counts")+
+  xlab("Date acquried")+  
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial", face="bold", size=12))
+)
+
+
+
+```
+
+#### ROI sizes for host and for bacteria for the 12C and 13C ROIs
+```{r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7}
+
+## Subset the 12C and 13C samples in distinct tables
+dat_12C = dat[Label == "12C"]
+dat_13C = dat[Label == "13C"]
+
+## Plot the sizes of all ROIS of the 12C samples
+(ggplot(dat_12C, aes(x=dat_12C$Tissue, dat_12C$ROIAREA))+
+  geom_boxplot()+
+  ylab("ROI area")+
+  xlab("Tissue type")+
+  geom_quasirandom()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  stat_n_text()+
+  theme_light()+
+  facet_zoom(ylim = c(0, 2.5))+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial",  size=14))
+)
+ggsave("ROIarea_12C.pdf", device=cairo_pdf)
+
+## Plot the sizes of all ROIS of the 13C samples
+(ggplot(dat_13C, aes(x=dat_13C$Tissue, dat_13C$ROIAREA))+
+  geom_boxplot()+
+  ylab("ROI area")+
+  xlab("Tissue type")+
+  geom_quasirandom()+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  stat_n_text()+
+  theme_light()+
+  facet_zoom(ylim = c(0, 2.5))+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial",  size=14))
+)
+
+ggsave("ROIarea_13C.pdf", device=cairo_pdf)
+
+```
+
+
+
+#### Plots of  all ROI ratios of the controls per tissue type. Quick review of at% enrichment in the different samples
+
+```{r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7}
+
+## Subset 12C values only to determine the natural 13C abundance in our samples
+dat_12C = dat[Label=="12C"]
+
+## Calulate the mean for 13C12C/12C ratio in 12C samples
+dat_12C[, by=.(Tissue), Average_ratio_C := mean(`13C 12C /12C2`, na.rm=T)]
+
+
+## Unique values for Tissue and avergae ratio
+unique(dat_12C[, c("Tissue", "Average_ratio_C")]) ## for wkb2 the ratio seems slightly lower that for host tissues
+
+## calculate the mean of  14N13C/14N12C ration in 12C samples
+dat_12C[, by=.(Tissue), Average_ratio_N := mean(`14N 13C /14N 12C`, na.rm=T)]
+head(dat_12C)
+
+## Unique values for Tissue and avergae ratio
+unique(dat_12C[, c("Tissue", "Average_ratio_N")]) ## similar ratios across the 3 entities
+
+
+(ggplot(dat_12C, aes(x=dat_12C$Tissue, dat_12C$`14N 13C /14N 12C`))+
+  geom_quasirandom(width = 0.1)+
+  theme_light()+
+  ylab("14N13C/14N12C ratio")+
+  xlab("Tissue type")+
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.00001))+
+  geom_point(stat="summary", fun.y="mean", type=15, colour="red")+
+  geom_errorbar(width =0.5, stat="summary", 
+    fun.ymin=function(x) {mean(x)-2*sd(x)}, 
+    fun.ymax=function(x) {mean(x)+2*sd(x)})+
+  stat_compare_means(method = "kruskal")+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(family="Arial",  size=14))
+)
+## More variability in bacterial cells compared to the rest
+ggsave("standard_ratio_12C_samples.pdf", device=cairo_pdf)
+
+## Overview of the enrichments in the different tissue types
+(ggplot(dat, aes(Sample, dat$atpercent_14N13c))+
+  geom_boxplot()+
+  ylab("At% 13C")+ 
+  labs(colour='Tissue') +
+  scale_y_continuous(breaks = seq(0, 9, by = 1))+
+  theme_light()+
+  ggtitle("13C atomic enrichment")+
+  scale_fill_manual(values = wes_palette("BottleRocket2"))+
+  xlab("Sample"))+
+  theme(axis.text.x=element_text(angle=90, hjust=1))+
+  theme(text=element_text(size=14,  family="Arial"))+
+  facet_wrap(~Tissue)
+
+ggsave( "13C_atomic_ernichment_14N13C.pdf", device = cairo_pdf)
+
+```
+
+#### The mean ratio for 13C12C/12C2 in host is 0.02178112 and for bacteria is 0.02191010
+
+#### The mean ratio for 14N13C/14N12C in host is 0.01126608 and for bacteria is 0.01125358
+
+
+
+```{r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7}
+
+
+
+## Subset the 12C and 13C samples in distinct tables
+dat_12C = dat[Label == "12C"]
+dat_13C = dat[Label == "13C"]
+
+## Check the labelling of the host cells and the epithelium with time after switch from 13C glc to 12C glc
+(dat_13C %>% subset(., Tissue %in% c("Host cells", "Epithelium"))%>%
+ggplot(., aes(as.numeric(Time), as.numeric(atpercent_14N13c)))+
+  geom_beeswarm( )+
+  ylab(expression("At% "~""^13*"C"~"Enrichment"))+
+  labs(colour='Experiment') +
+  theme_base()+
+    stat_cor(method = "pearson")+
+  geom_smooth(method = "lm", se=TRUE, aes(group=Tissue))+
+  scale_y_continuous(limits = c(0,5), breaks = seq(0, 5, by = 1))+
+  scale_colour_manual(values = wes_palette("BottleRocket2"))+
+  xlab("Time (h)")+
+  geom_hline(yintercept = 1.11, linetype="dashed")+
+  scale_x_continuous(limits = c(0,80), breaks= seq(0,80,8))+
+  theme(strip.text = element_text(size=20), text=element_text(size=14,  family="Arial")
+    ,axis.title.x =element_text(face="bold"),
+  axis.title.y =element_text(face="bold") )+
+  stat_cor(label.y = 8)+
+  facet_wrap(~Tissue)
+)
+ggsave("cuticle_tissue_timecourse.pdf", device=cairo_pdf)
+
+
+
+
+```
+
+```{r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7}
+
+## Figure 3C, labbeling timeline
+(ggplot(dat[Label=="13C"], aes(x=Time, atpercent_14N13c, colour=Tissue))+
+  stat_summary(aes(Time, atpercent_14N13c), geom = "pointrange", fun.y = mean, shape = 16, size = 0.2,alpha =0.5,
+  fun.ymin = function(x) mean(x) - sd(x), fun.ymax = function(x) mean(x) + sd(x) ) + 
+  stat_summary(aes(Time, atpercent_14N13c, colour=Tissue), geom = "line", size =0.5, fun = mean, alpha =0.5)+
+  geom_quasirandom(alpha =1, size=0.5, colour="black", position=position_dodge2(width =2))+
+  scale_colour_manual(labels = c("Cuticle","Host tissue", "S. alvi" ), values = c("blue3", "darkorange3", "springgreen3"))+
+  scale_fill_manual( labels = c("Cuticle","Host tissue", "S. alvi"), values = c("blue3", "darkorange3", "springgreen3"))+
+  labs(colour='Tissue') + 
+  ylab(expression("At% "~""^13*"C"~"Enrichment"))+
+  scale_y_continuous(limits = c(0,7), breaks = seq(0, 7, by = 1))+
+  scale_x_continuous(limits = c(0,80), breaks = seq(0, 80, by = 8))+
+  xlab("Time (h)")+
+  annotate("text", x=18.5, y=1.3, size=2, label= "Natural Abundance")+
+  #facet_wrap(~Tissue, nrow = 3)+
+  geom_hline(yintercept = 1.11, linetype="dashed")+
+  theme( legend.key.size = unit(0.4, 'cm'))+
+     #theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"), legend.key.size = unit(0.5,"line"))+
+  guides(shape = "none")+
+  theme(text=element_text(size=10,  family="Arial"),
+        legend.text = element_text(color = "black", size=6), 
+        legend.title = element_text(color = "black", size=6),
+        panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        panel.background = element_rect(fill = "white", colour = "grey50"),
+        legend.position = c(.2, .75), 
+        axis.text.x = element_text(color = "black", size=10), 
+        axis.text.y = element_text(color = "black", size=10), 
+        axis.title.y=element_text(color = "black", size=10),
+        axis.ticks.x = element_line(linetype = "dashed"))+
+  force_panelsizes(rows = unit(1.6, "in"),
+                 cols = unit(2.4, "in")))
+  
+
+ggsave("Figure_3C.pdf",device=cairo_pdf, width=3, height= 2, units = "in", dpi = 300)
+
+```
+
+
+#### Scale calcluation for main text figure 3
+``` {r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7}
+
+##14N13C ratios
+scale_function= function(ratio){
+delta= ((ratio/0.01125358)-1)*1000
+scale_value= ((delta+1000)/(delta+1000+(1000/0.01125358)))*100
+return(scale_value)
+}
+
+
+scale_function= function(ratio){
+scale_value= (ratio*1.11)/0.01125358
+return(scale_value)
+}
+
+original_scales = c(0, 0.0113, 0.0158, 0.0223, 0.0315, 0.0441, 0.0621, 0.0874, 0.1229)
+atpercent_scale= scale_function(original_scales)
+round(atpercent_scale, 2)
+
+
+#### For the main experiment
+## Average Host cells enrichment per sample
+dat[Tissue== "Host cells" & Label=="13C", .(mean(atpercent_14N13c), sd(atpercent_14N13c)), by = "Sample" ]
+
+## Average cuticle enrichment per sample
+dat[Tissue== "Epithelium" & Label=="13C" , .(mean(atpercent_14N13c), sd(atpercent_14N13c)), by = "Sample" ]
+
+
+## Average bacteria enrichment per sample
+dat[Tissue== "Wkb2" & Label=="13C" , .(mean(atpercent_14N13c), sd(atpercent_14N13c)), by = "Sample" ]
+
+
+## Average Host cells enrichment overall time points and samples
+dat[Tissue== "Host cells" & Label=="13C" , .(mean(atpercent_14N13c), sd(atpercent_14N13c)),  ]
+
+
+
+
+  
+```
+
+

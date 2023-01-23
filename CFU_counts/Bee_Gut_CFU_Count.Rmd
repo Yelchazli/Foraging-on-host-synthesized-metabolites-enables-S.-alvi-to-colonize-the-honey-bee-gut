@@ -102,7 +102,7 @@ ggplot(data = CFUs, mapping = aes(x = Condition, y = CFU)) +
   #geom_text(data = tHSD_label, aes(x = Cage,  y = yhsd, label = Letters), size=5) +
   stat_compare_means(comparisons = diet_comp, label =  "p.signif", label.y=c(8,8.5,9)) +
   stat_n_text(na.rm = TRUE, size=2, y.pos = 2.5)
-  ggsave("cfu_plot_grouped_fig_s2.pdf" ,device=cairo_pdf, width=4, height= 3, units = "in", dpi = 300)
+  ggsave("Figure_S1.pdf" ,device=cairo_pdf, width=4, height= 3, units = "in", dpi = 300)
 
   
  (ggplot(subset(CFUs, Colonization %in% "Sn"), mapping = aes(x = Condition, y = CFU)) +
@@ -219,8 +219,8 @@ ggplot(data = CFUs_strain, mapping = aes(x = Colonization, y = cfu_count)) +
   geom_text(data = tHSD_label, aes(x = Colonization,  y = yhsd, label = Letters), size=3) +
   stat_n_text(na.rm = TRUE, size=3, y.pos = 1) +
   geom_text(data = Success, aes(x = Colonization,  y = ypos, label = colonized), size=3) +
-  geom_text(aes(x = 2.5, y = 45), color="black", label = 'Colonization Success', size=3) +
-  force_panelsizes(rows = unit(3, "in"), cols = unit(3, "in"))
+  geom_text(aes(x = 2.5, y = 45), color="black", label = 'Colonization Success', size=3) #+
+ # force_panelsizes(rows = unit(3, "in"), cols = unit(3, "in"))
 
   #ggsave("AM_cfu_plot_2.pdf", device=cairo_pdf, width=3.5, height= 4, units = "in", dpi = 300)
 

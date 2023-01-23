@@ -547,14 +547,16 @@ ggplot(data=lmm_output_sig, aes(x=Sn, y=Gi, color=Pollen, label=siglabel)) +
 ```
 
 
-## Generate plots for Figure S3
+## Generate plot for Figure S3
 ```{r, echo=FALSE, warning=FALSE}   
-ggplot(subset(Results_NC_samples, Metabolite %in% c("Fumarate", "Acetate")),
-    mapping = aes(x = Condition, y = z_score, fill = Condition)) +
+ggplot(subset(Results_NC_samples, Metabolite %in% 
+                c("Fumarate", "Acetate","alpha-Ketoglutarate", "3-Hydroxy-3-methylglutarate","Lactate", "Pyruvate","Citrate", "Glycerate","Unknown_16_22","Unknown_15_15", "Unknown_12_74", "Benzoic acid", "Succinate","Dihydroxynaphthalene", "Anthranilate", "Glycine", "Caffeic_acid", "Urea", "2-Ketoisocaproate", "Malate", "Aspartate")), 
+       mapping = aes(x = Condition, y = z_score, fill = Condition)) +
   geom_boxplot(na.rm = TRUE, alpha = 1, outlier.shape = NA, lwd=0.25) +
-  geom_jitter(width = 0.15, height = 0, size=0.5, alpha=0.5) +
-  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", "skyblue","royalblue", "palegreen", "forestgreen")) +
-  stat_n_text(na.rm = TRUE, size = 2, y.pos = -1 ) +
+  geom_jitter(width = 0.15, height = 0, size=0.75, alpha=0.8, stroke=0) +
+  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", 
+                             "skyblue","royalblue", "palegreen", "forestgreen")) +
+  stat_n_text(na.rm = TRUE, size = 1.5, y.pos = -1.8 ) +
   geom_hline(aes(yintercept=LOD), col="#3F5151", linetype = "dotted") +
   theme(panel.background = element_rect(fill = "white", colour = "black"),
         panel.border = element_rect(colour = "grey", fill=NA, size=1),
@@ -563,91 +565,18 @@ ggplot(subset(Results_NC_samples, Metabolite %in% c("Fumarate", "Acetate")),
         axis.text.x = element_blank(),
         axis.text.y = element_text(color = "black", size=8),
         axis.title.x = element_blank(), 
-        axis.title.y = element_blank(),
+        axis.title.y = element_text(color = "black", size=10),
         strip.text.x = element_text(size = 6)) +
-  scale_y_continuous(limits=c(-1.5,5.5), breaks=seq(-2, 6, 1)) +
-  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+ 
-  stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
+  scale_y_continuous(limits=c(-1.8,6), breaks=seq(-2, 6, 1)) +
+  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+
+  stat_compare_means(label = "p.signif", method = "wilcox.test", 
+                     ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
                      label.y = 5.0, color = "grey") +
-    stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
+    stat_compare_means(label = "p.signif", method = "wilcox.test", 
+                       ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
                      label.y = 5.25, color = "slategrey") +
-  facet_wrap(~Metabolite,nrow=1)
-#   ggsave("Fum_Ace_z_score.pdf",device=cairo_pdf, width=3.5, height= 2, units = "in", dpi = 300)     
-  
- ggplot(subset(Results_NC_samples, Metabolite %in% c("alpha-Ketoglutarate", "3-Hydroxy-3-methylglutarate")),
-         mapping = aes(x = Condition, y = z_score, fill = Condition)) +
-  geom_boxplot(na.rm = TRUE, alpha = 1, outlier.shape = NA, lwd=0.25) +
-  geom_jitter(width = 0.15, height = 0, size=1, alpha=0.5, stroke=0) +
-  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", "skyblue","royalblue", "palegreen", "forestgreen")) +
-  stat_n_text(na.rm = TRUE, size = 2, y.pos = -1 ) +
-  geom_hline(aes(yintercept=LOD), col="#3F5151", linetype = "dotted") +
-  theme(panel.background = element_rect(fill = "white", colour = "black"),
-        panel.border = element_rect(colour = "grey", fill=NA, size=1),
-        strip.background = element_rect(fill="white",colour = "black"),
-        legend.position = "none",
-        axis.text.x = element_blank(),
-        axis.text.y = element_text(color = "black", size=8),
-        axis.title.x = element_blank(), 
-        axis.title.y = element_blank(),
-        strip.text.x = element_text(size = 6)) +
-  scale_y_continuous(limits=c(-1.25,5.5), breaks=seq(-1, 5, 1)) +
-  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+ 
-  stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
-                     label.y = 5.0, color = "grey") +
-    stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
-                     label.y = 5.25, color = "slategrey") +
-  facet_wrap(~Metabolite,nrow=1)
- # ggsave("aKG_3Hmg_z_score.pdf", device=cairo_pdf, width=3.5, height= 2, units = "in", dpi = 300)     
-  
- ggplot(subset(Results_NC_samples, Metabolite %in% c("Lactate", "Pyruvate")),
-          mapping = aes(x = Condition, y = z_score, fill = Condition)) +
-  geom_boxplot(na.rm = TRUE, alpha = 1, outlier.shape = NA, lwd=0.25) +
-  geom_jitter(width = 0.15, height = 0, size=1, alpha=0.5, stroke=0) +
-  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", "skyblue","royalblue", "palegreen", "forestgreen")) +
-  stat_n_text(na.rm = TRUE, size = 2, y.pos = -1 ) +
-  geom_hline(aes(yintercept=LOD), col="#3F5151", linetype = "dotted") +
-  theme(panel.background = element_rect(fill = "white", colour = "black"),
-        panel.border = element_rect(colour = "grey", fill=NA, size=1),
-        strip.background = element_rect(fill="white",colour = "black"),
-        legend.position = "none",
-        axis.text.x = element_blank(),
-        axis.text.y = element_text(color = "black", size=8),
-        axis.title.x = element_blank(), 
-        axis.title.y = element_blank(),
-        strip.text.x = element_text(size = 6)) +
-  scale_y_continuous(limits=c(-1.25,5.5), breaks=seq(-1, 5, 1)) +
-  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+ 
-  stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
-                     label.y = 5.0, color = "grey") +
-    stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
-                     label.y = 5.25, color = "slategrey") +
-  facet_wrap(~Metabolite,nrow=1)
- # ggsave("Lac_Pyr_z_score.pdf",device=cairo_pdf, width=3.5, height= 2, units = "in", dpi = 300)   
- 
- ggplot(subset(Results_NC_samples, Metabolite %in% c("Citrate", "Glycerate")),
-         mapping = aes(x = Condition, y = z_score, fill = Condition)) +
-  geom_boxplot(na.rm = TRUE, alpha = 1, outlier.shape = NA, lwd=0.25) +
-  geom_jitter(width = 0.15, height = 0, size=1, alpha=0.5, stroke=0) +
-  scale_fill_manual(values=c("grey", "slategrey","plum1", "plum4", "skyblue","royalblue", "palegreen", "forestgreen")) +
-  stat_n_text(na.rm = TRUE, size = 2, y.pos = -1 ) +
-  geom_hline(aes(yintercept=LOD), col="#3F5151", linetype = "dotted") +
-  theme(panel.background = element_rect(fill = "white", colour = "black"),
-        panel.border = element_rect(colour = "grey", fill=NA, size=1),
-        strip.background = element_rect(fill="white",colour = "black"),
-        legend.position = "none",
-        axis.text.x = element_blank(),
-        axis.text.y = element_text(color = "black", size=8),
-        axis.title.x = element_blank(), 
-        axis.title.y = element_blank(),
-        strip.text.x = element_text(size = 6)) +
-  scale_y_continuous(limits=c(-1.25,5.5), breaks=seq(-1, 5, 1)) +
-  #scale_x_discrete(breaks=c('MD_SW','Sn_SW','Gi_SW', 'Sn_Gi_SW'), labels=c('MD','Sn','Gi', 'Sn+Gi'))+ 
-  stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_SW", hide.ns = TRUE, na.rm = TRUE,
-                     label.y = 5.0, color = "grey") +
-    stat_compare_means(label = "p.signif", method = "wilcox.test", ref.group = "MD_P", hide.ns = TRUE, na.rm = TRUE,
-                     label.y = 5.25, color = "slategrey") +
-  facet_wrap(~Metabolite,nrow=1)
- # ggsave("Cit_Glyc_z_score.pdf",device=cairo_pdf, width=3.5, height= 2, units = "in", dpi = 300)    
+  facet_wrap(~Metabolite,nrow=4)
+  # ggsave("Fig_S3_z_score_box.pdf",device=cairo_pdf, width=9, height= 7, units = "in", dpi = 300)    
 ```
 
 ## Fig 2A: Compare Metabolite Abundances in Pollen Extract vs Bee Guts

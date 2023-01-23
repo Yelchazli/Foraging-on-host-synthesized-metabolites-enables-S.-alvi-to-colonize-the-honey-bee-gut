@@ -340,7 +340,9 @@ Sn_consumption <- Sn_products_smet %>%
   filter(Condition == "All")
 Sn_consumption_avg <- Sn_consumption %>%
   group_by(Metabolite) %>%
-  mutate(Consumption_avg = mean(Consumption))%>%
+  mutate(Consumption_avg = mean(Consumption),
+         Consumption_avg = case_when(Consumption_avg < 0 ~ 0.005,  # set negative values to 0
+                                     TRUE ~ Consumption_avg))%>%
   filter(Replicate==4)
 
 ggplot(data = Sn_consumption_avg, aes(x = fct_rev(fct_reorder(Metabolite, Consumption_avg)), y = Consumption_avg)) +
@@ -358,7 +360,7 @@ ggplot(data = Sn_consumption_avg, aes(x = fct_rev(fct_reorder(Metabolite, Consum
   scale_y_continuous(labels=scales::percent, name = "Consumption (%)", limits=c(0,1.0))+
   xlab("Substrate") +
   scale_color_manual(values= wes_palette("Darjeeling1", n = 5))
-#ggsave("Sn_All_substrate_consumption.pdf")
+ggsave("Figure_S4.pdf",device=cairo_pdf, width=5, height= 4, units = "in", dpi = 300)
 ```
 ## Analysis of degradation of kynurenine to anthranilate
 ```{r, warning=FALSE}
