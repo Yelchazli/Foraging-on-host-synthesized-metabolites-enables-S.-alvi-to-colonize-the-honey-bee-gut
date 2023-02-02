@@ -1,4 +1,4 @@
-# AQuinn_YElChazli_NatMicrobiol_2022
+# Foraging on host synthesized metabolites enables the bacterial symbiont Snodgrassella alvi to colonize the honey bee gut
 
 This repositery contains all the files and scrupts used in Quinn, El Chazli et al. 2023. 
 
@@ -41,3 +41,8 @@ This repositery contains all the files and scrupts used in Quinn, El Chazli et a
   1. .RMD and .HTML of the analysis 
   2. The table of processed ion responses for the Apis gut metabolomics experiment (Quant_table_11032021_Processed.csv)
 
+
+### Misc info :
+Each folder contains the R markdown code and corresponding .html knitted from it. .rar contains the .html for download.
+Each script is also available as a markdown for better readability on github.
+For each script output folders contain .png of figures produced by the .RMD
