@@ -2,7 +2,8 @@
 title: "Metabolite ILE Analysis"
 author: "Andrew Quinn"
 date: "1/28/2022"
-output: html_document
+md_document:
+    variant: markdown_github
 ---
 # Analysis of 13C Isotope labelling of gut metabolites in bees fed 100% U-13C glucose before switching to naturally abundant glucose at time zero.  
 

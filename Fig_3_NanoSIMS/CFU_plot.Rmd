@@ -1,10 +1,11 @@
 ---
-title: "CFU_plot"
-output:
-  html_document:
-    df_print: paged
-  pdf_document: default
+title: "CFU plot"
+author: "Yassine El Chazli"
+date: "25/01/2022"
+output: html_document
+  
 ---
+
 
 ```{r, echo=FALSE}
 knitr::opts_chunk$set(error = TRUE)
@@ -84,16 +85,16 @@ setDT(cfu_count)
 ```
 
 ##### Figure 3B
-```{r, echo = T, eval=T, message=F, warning=F, results=F}
+```{r}
 
-ggplot(cfu_count, aes(x = Time, y = CFU))+
+(ggplot(cfu_count, aes(x = Time, y = CFU))+
   stat_summary(data=cfu_count[Condition!="Inoculum"],fun=mean, geom="line", color = "gray", alpha=0.5, stroke =0)  +
   stat_summary(fun.data=mean_sdl, fun.args = list(mult=1), 
                geom="pointrange", color="gray", alpha=0.5 , stroke =0) +
   geom_beeswarm(data=cfu_count[ Time==0], size=1.2, colour= "blue", alpha = 0.5, width =1, stroke =0 )+
-  geom_quasirandom(data=cfu_count,fill = "goldenrod2", height = 0, width = 0.5, size = 1.2, colour="black", alpha=0.5, stroke =0) +
+  geom_quasirandom(data=cfu_count, height = 0, width = 0.5, size = 1.2, colour="black", alpha=0.5, stroke =0) +
   geom_hline(yintercept=50, col="black", linetype = "dashed") +
-  theme(text=element_text(size=8,  family="Arial"),
+  theme(text=element_text(size=8),
         panel.background = element_rect(fill = "white", colour = "grey50"),
         panel.border = element_rect(colour = "grey", fill=NA, size=1),
         axis.text.x = element_text(color = "black", size=8), axis.text.y = element_text(color = "black", size=10),
@@ -104,10 +105,6 @@ ggplot(cfu_count, aes(x = Time, y = CFU))+
   scale_x_continuous(limits = c(0,80), breaks = seq(0, 80, by = 8))+
   xlab("Time (h)")+
   annotate("text", x=15, y=14, size=2, label= "Colonization Success (%)")+
-  geom_text(data=cfu_summary, aes(label=paste0(round(Colonization,0),"%"),y=6), size=2)#+
-  #force_panelsizes(rows = unit(1.6, "in"), cols = unit(2.4, "in"))
-
-ggsave("Fig.3B.pdf" ,device=cairo_pdf, width=3, height= 2, units = "in", dpi = 300) 
-
-````
+  geom_text(data=cfu_summary, aes(label=paste0(round(Colonization,0),"%"),y=6), size=2))
+```
 

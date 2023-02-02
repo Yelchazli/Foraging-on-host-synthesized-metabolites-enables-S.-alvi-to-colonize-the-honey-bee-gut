@@ -2,7 +2,8 @@
 title: "Bee Gut Metabolomics"
 author: "Andrew Quinn"
 date: "25/01/2021"
-output: html_document
+output: md_document
+
 ---
 # Analysis of gut metabolomics dataset for (Figure 1B, 1C, S3)
 ## Experimental Design: Colonized bees [S. alvi, Gilliamella, S. alvi + Gilliamella, MD] fed [sugar water, sugar water + pollen]
@@ -456,7 +457,7 @@ metab_lmm$Gi <- factor(metab_lmm$Gi)
 metab_lmm$Bee_exp <- factor(metab_lmm$Bee_exp)
 
 library(lmm2met)
-fitMet = fitLmm(fix= c('Food','Sn',"Gi"), random='(1|Bee_exp)', data=metab_lmm, start=6, end=239)
+fitMet = fitLmm(fix= c('Food','Sn',"Gi"), random='(1|Bee_exp)', data=metab_lmm, start=6, end=238)
 
 plot(fitMet, type='coeff')
 
@@ -473,7 +474,7 @@ getFixCoeff(fitMet, save=TRUE)
 list2env(fitMet,envir = .GlobalEnv)
 
 fittedDat_long <- fittedDat %>%
-  pivot_longer(cols =  c("X1":"X234"),
+  pivot_longer(cols =  c("X1":"X233"),
                names_to = "Metabolite",
                values_to = "FittedDat",
                values_drop_na = FALSE)

@@ -3,6 +3,7 @@ title: "Apis gut metabolomics"
 author: "Andrew Quinn"
 date: "12/16/2021"
 output: html_document
+
 ---
 
 # Gut metabolomics of honey bees monocolonized with strains of S alvi. Figure 5B, Figure S6

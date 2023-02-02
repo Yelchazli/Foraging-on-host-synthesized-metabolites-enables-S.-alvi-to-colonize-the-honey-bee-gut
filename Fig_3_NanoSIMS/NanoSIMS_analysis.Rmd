@@ -1,9 +1,8 @@
 ---
 title: "NanoSIMS_analysis"
 output:
-  html_document:
-    df_print: paged
-  pdf_document: default
+ md_document:
+    variant: markdown_github
 ---
 
 ```{r, echo=FALSE}
