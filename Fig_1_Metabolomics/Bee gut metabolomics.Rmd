@@ -3,7 +3,7 @@ title: "Bee Gut Metabolomics"
 author: "Andrew Quinn"
 date: "25/01/2021"
 output: md_document
-
+always_allow_html: true
 ---
 # Analysis of gut metabolomics dataset for (Figure 1B, 1C, S3)
 ## Experimental Design: Colonized bees [S. alvi, Gilliamella, S. alvi + Gilliamella, MD] fed [sugar water, sugar water + pollen]
