@@ -6,8 +6,13 @@ This repositery contains all the files and scripts used in Quinn, El Chazli et a
 
 #### CFU_counts contains  :
   1. RMD and HTML of the analyis
-  2. All_CFU_Count.csv containing the raw CFU counts for Figure 1A, S1A
+  2. All_CFU_Count.csv containing the raw CFU counts for Figure S1A
   3. CFU_Count_AM.csv containing the raw CFU counts for Figure 5A
+
+
+#### CFU_counts contains  :
+  1. .md of the analysis
+  2. curated_values.csv containing the raw CT values for qPCR used in Figure 1A and S1B
 
 #### Fig_1_Metabolomics contains  : 
   
