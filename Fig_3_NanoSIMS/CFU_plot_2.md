@@ -1,48 +1,13 @@
----
-title: "CFU plot"
-author: "Yassine El Chazli"
-date: "25/01/2022"
-output: html_document
-  
----
-
-
-```{r, echo=FALSE}
-knitr::opts_chunk$set(error = TRUE)
-knitr::opts_chunk$set(fig.width=120, fig.height=80) 
-```
-
-```{r, echo = F}
-library(knitr)
-opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
-```
-
-```{r wrap-hook, eval=T}
-library(knitr)
-hook_output = knit_hooks$get('output')
-knit_hooks$set(output = function(x, options) {
-  # this hook is used only when the linewidth option is not NULL
-  if (!is.null(n <- options$linewidth)) {
-    x = knitr:::split_lines(x)
-    # any lines wider than n should be wrapped
-    if (any(nchar(x) > n)) x = strwrap(x, width = n)
-    x = paste(x, collapse = '\n')
-  }
-  hook_output(x, options)
-})
-```
-
 #### These are the required package to reproduce this analysis.
 
-```{r, echo = T, eval=T, message=F, warning=F, results=F}
-
+``` r
 ### env setup
 
-required_packages = c("dplyr", "data.table", "ggplot2", "readxl", "ggbeeswarm", "ggpubr", "EnvStats", "tidyverse", "patchwork", "ggforce", "wesanderson", "RcolorBrewer", "extrafont", "ggthemes" ,"egg", "scales", "ggh4x","grid")
+required_packages = c("dplyr", "data.table", "ggplot2", "ggbeeswarm", "ggpubr", "EnvStats", "tidyverse",  "ggforce", "wesanderson", "RcolorBrewer", "ggthemes" , "scales")
 need_install = required_packages[!(required_packages) %in% installed.packages()]
 
 if (length(need_install) > 0){
-  install.packages((need_install))
+  install.packages((need_install),repos = "http://cran.us.r-project.org")
 }
 
 # Load packages
@@ -53,12 +18,11 @@ dir_script = dirname(rstudioapi::getSourceEditorContext()$path)
 setwd(dir_script)
 #font_import()
 #loadfonts(device="win")
-
 ```
 
-#### Load the data 
-```{r, echo = T, eval=T, message=F, warning=F, results=F}
+#### Load the data
 
+``` r
 cfu_count <- fread("CFU_count.csv") %>%
   drop_na() %>%
   group_by(Time) %>%
@@ -85,9 +49,9 @@ setDT(cfu_count)
 ```
 
 ##### Figure 3B
-```{r}
 
-(ggplot(cfu_count, aes(x = Time, y = CFU))+
+``` r
+ggplot(cfu_count, aes(x = Time, y = CFU))+
   stat_summary(data=cfu_count[Condition!="Inoculum"],fun=mean, geom="line", color = "gray", alpha=0.5, stroke =0)  +
   stat_summary(fun.data=mean_sdl, fun.args = list(mult=1), 
                geom="pointrange", color="gray", alpha=0.5 , stroke =0) +
@@ -105,6 +69,7 @@ setDT(cfu_count)
   scale_x_continuous(limits = c(0,80), breaks = seq(0, 80, by = 8))+
   xlab("Time (h)")+
   annotate("text", x=15, y=14, size=2, label= "Colonization Success (%)")+
-  geom_text(data=cfu_summary, aes(label=paste0(round(Colonization,0),"%"),y=6), size=2))
+  geom_text(data=cfu_summary, aes(label=paste0(round(Colonization,0),"%"),y=6), size=2)
 ```
 
+![](CFU_plot_2_files/figure-markdown_github/unnamed-chunk-3-1.png)
