@@ -1,6 +1,6 @@
 # Foraging on host synthesized metabolites enables the bacterial symbiont Snodgrassella alvi to colonize the honey bee gut
 
-This repositery contains all the files and scrupts used in Quinn, El Chazli et al. 2023. 
+This repositery contains all the files and scripts used in Quinn, El Chazli et al. 2023. 
 
 #### Scripts and datasets are split by Figure:
 
