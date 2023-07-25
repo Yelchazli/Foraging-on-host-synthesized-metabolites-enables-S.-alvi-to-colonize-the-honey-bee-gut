@@ -51,18 +51,9 @@ cfu_count <- fread("CFU_count.csv") %>%
     Colonized = case_when(CFU > 50 ~1,
                           TRUE ~ 0))
 cfu_summary <- cfu_count %>%
-  group_by(Time) %>% 
   filter(Gut == "Ileum") %>%
-  summarise(avg = mean(CFU), stdev = sd(CFU), Colonization = sum(Colonized)/n()*100)
- 
-
-
-cfu_summary <- cfu_count %>%
   group_by(Time) %>% 
-  filter(Gut == "Ileum") %>%
   summarise(avg = mean(CFU), stdev = sd(CFU), Colonization = sum(Colonized)/n()*100)
-
-inoculum= cfu_count[cfu_count$Time!= 0, ]
 
 setDT(cfu_count)
 ```
@@ -71,22 +62,28 @@ setDT(cfu_count)
 ```{r, eval=T, echo=T, message=FALSE, warning=FALSE, results=F}
 
 ggplot(cfu_count, aes(x = Time, y = CFU))+
-  stat_summary(data=cfu_count[Condition!="Inoculum"],fun=mean, geom="line", color = "gray", alpha=0.5, stroke =0)  +
-  stat_summary(fun.data=mean_sdl, fun.args = list(mult=1), 
-               geom="pointrange", color="gray", alpha=0.5 , stroke =0) +
-  geom_beeswarm(data=cfu_count[ Time==0], size=1.2, colour= "blue", alpha = 0.5, width =1, stroke =0 )+
-  geom_quasirandom(data=cfu_count, height = 0, width = 0.5, size = 1.2, colour="black", alpha=0.5, stroke =0) +
+  stat_summary(data=cfu_count[Gut=="Ileum"],fun=mean, geom="line", color = "salmon", stroke =0)  +
+  stat_summary(data=cfu_count[Gut=="Ileum"],fun.data=mean_sdl, fun.args = list(mult=1), 
+               geom="point", shape=17, size=2, color="salmon", stroke =0) +
+  geom_point(data=cfu_count[Condition=="Inoculum"], 
+             fill="#6388b4", color = "black", height = 0, width = 1, shape=22, size = 1.5, stroke=0.25)+
+  geom_quasirandom(data=cfu_count[Gut=="Ileum"], fill="grey70",
+                   color = "black", height = 0, width = 1, shape=21, size = 1.5, stroke=0.25) +
   geom_hline(yintercept=50, col="black", linetype = "dashed") +
-  theme(text=element_text(size=8),
+  theme(text=element_text(size=7),
         panel.background = element_rect(fill = "white", colour = "grey50"),
         panel.border = element_rect(colour = "grey", fill=NA, size=1),
-        axis.text.x = element_text(color = "black", size=8), axis.text.y = element_text(color = "black", size=10),
-        axis.title.x =element_text(color = "black", size=8), axis.title.y =element_text(color = "black", size=10))+
-  scale_y_log10(name = "CFUs / Ileum",
-        breaks = trans_breaks("log10", function(x) 10^x, n = 10),
-        labels = trans_format("log10", math_format(10^.x)))+
+        axis.text.x = element_text(color = "black", size=7), 
+        axis.text.y = element_text(color = "black", size=7),
+        axis.title.x =element_text(color = "black", size=7), 
+        axis.title.y =element_text(color = "black", size=7),
+         aspect.ratio=1)+
+    scale_y_log10( name = "CFU's / Ileum", breaks = scales::trans_breaks("log10", function(x) 10^x),
+                 labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  annotation_logticks(sides = "l") +
   scale_x_continuous(limits = c(0,80), breaks = seq(0, 80, by = 8))+
   xlab("Time (h)")+
-  annotate("text", x=15, y=14, size=2, label= "Colonization Success (%)")+
-  geom_text(data=cfu_summary, aes(label=paste0(round(Colonization,0),"%"),y=6), size=2)
+  annotate("text", x=40, y=14, size=1.75, label= "Colonization Success (%)")+
+  geom_text(data=cfu_summary, aes(label=paste0(round(Colonization,0),"%"),y=6), size=1.75)
+ ggsave("Fig3b_revised.pdf",device=cairo_pdf, width=90, height= 60, units = "mm", dpi = 600)
 ```

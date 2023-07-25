@@ -273,7 +273,7 @@ ggsave("ROIarea_12C.pdf", device=cairo_pdf)
   theme(text=element_text(family="Arial",  size=14))
 )
 
-ggsave("ROIarea_13C.pdf", device=cairo_pdf)
+#ggsave("ROIarea_13C.pdf", device=cairo_pdf)
 
 ```
 
@@ -316,7 +316,7 @@ unique(dat_12C[, c("Tissue", "Average_ratio_N")]) ## similar ratios across the 3
   theme(text=element_text(family="Arial",  size=14))
 )
 ## More variability in bacterial cells compared to the rest
-ggsave("standard_ratio_12C_samples.pdf", device=cairo_pdf)
+#ggsave("standard_ratio_12C_samples.pdf", device=cairo_pdf)
 
 ## Overview of the enrichments in the different tissue types
 (ggplot(dat, aes(Sample, dat$atpercent_14N13c))+
@@ -332,7 +332,7 @@ ggsave("standard_ratio_12C_samples.pdf", device=cairo_pdf)
   theme(text=element_text(size=14,  family="Arial"))+
   facet_wrap(~Tissue)
 
-ggsave( "13C_atomic_ernichment_14N13C.pdf", device = cairo_pdf)
+#ggsave( "13C_atomic_ernichment_14N13C.pdf", device = cairo_pdf)
 
 ```
 
@@ -370,7 +370,7 @@ ggplot(., aes(as.numeric(Time), as.numeric(atpercent_14N13c)))+
   stat_cor(label.y = 8)+
   facet_wrap(~Tissue)
 )
-ggsave("cuticle_tissue_timecourse.pdf", device=cairo_pdf)
+#ggsave("cuticle_tissue_timecourse.pdf", device=cairo_pdf)
 
 
 
@@ -380,13 +380,17 @@ ggsave("cuticle_tissue_timecourse.pdf", device=cairo_pdf)
 ```{r, echo = T, eval=T, warning=FALSE, fig.asp = 0.8, fig.width = 7}
 
 ## Figure 3C, labbeling timeline
-(ggplot(dat[Label=="13C"], aes(x=Time, atpercent_14N13c, colour=Tissue))+
-  stat_summary(aes(Time, atpercent_14N13c), geom = "pointrange", fun.y = mean, shape = 16, size = 0.2,alpha =0.5,
-  fun.ymin = function(x) mean(x) - sd(x), fun.ymax = function(x) mean(x) + sd(x) ) + 
-  stat_summary(aes(Time, atpercent_14N13c, colour=Tissue), geom = "line", size =0.5, fun = mean, alpha =0.5)+
-  geom_quasirandom(alpha =1, size=0.5, colour="black", position=position_dodge2(width =2))+
-  scale_colour_manual(labels = c("Cuticle","Host tissue", "S. alvi" ), values = c("blue3", "darkorange3", "springgreen3"))+
-  scale_fill_manual( labels = c("Cuticle","Host tissue", "S. alvi"), values = c("blue3", "darkorange3", "springgreen3"))+
+ggplot(dat[Label=="13C"], aes(x=Time, atpercent_14N13c, colour=Tissue))+
+  #stat_summary(aes(Time, atpercent_14N13c), geom = "pointrange", 
+   #            fun.y = mean, shape = 16, size = 0.5,
+  #fun.ymin = function(x) mean(x) - sd(x), fun.ymax = function(x) mean(x) + sd(x) ) + 
+  stat_summary(aes(Time, atpercent_14N13c, colour=Tissue), geom = "line", size =0.5, fun = mean)+
+  geom_quasirandom(aes(fill=Tissue), color="Black",shape=21,
+                   size=1,stroke=0.25, position=position_dodge2(width =2))+
+  scale_colour_manual(labels = c("Cuticle","Host tissue", "S. alvi" ), 
+                      values = c("#6388b4", "#ffae34", "#55ad89"))+
+  scale_fill_manual( labels = c("Cuticle","Host tissue", "S. alvi"), 
+                     values = c("#6388b4", "#ffae34", "#55ad89"))+
   labs(colour='Tissue') + 
   ylab(expression("At% "~""^13*"C"~"Enrichment"))+
   scale_y_continuous(limits = c(0,7), breaks = seq(0, 7, by = 1))+
@@ -394,25 +398,24 @@ ggsave("cuticle_tissue_timecourse.pdf", device=cairo_pdf)
   xlab("Time (h)")+
   annotate("text", x=18.5, y=1.3, size=2, label= "Natural Abundance")+
   #facet_wrap(~Tissue, nrow = 3)+
-  geom_hline(yintercept = 1.11, linetype="dashed")+
-  theme( legend.key.size = unit(0.4, 'cm'))+
+  geom_hline(yintercept = 1.109, linetype="dashed")+
+  #theme( legend.key.size = unit(0.4, 'cm'))+
      #theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"), legend.key.size = unit(0.5,"line"))+
   guides(shape = "none")+
-  theme(text=element_text(size=10,  family="Arial"),
-        legend.text = element_text(color = "black", size=6), 
-        legend.title = element_text(color = "black", size=6),
+  theme(text=element_text(size=7,  family="Arial"),
+        legend.text = element_text(color = "black", size=7), 
+        legend.title = element_text(color = "black", size=7),
         panel.border = element_rect(colour = "grey", fill=NA, size=1),
         panel.background = element_rect(fill = "white", colour = "grey50"),
-        legend.position = c(.2, .75), 
-        axis.text.x = element_text(color = "black", size=10), 
-        axis.text.y = element_text(color = "black", size=10), 
-        axis.title.y=element_text(color = "black", size=10),
-        axis.ticks.x = element_line(linetype = "dashed"))+
-  force_panelsizes(rows = unit(1.6, "in"),
-                 cols = unit(2.4, "in")))
-  
+        legend.position = c(.25, .70), 
+        axis.text.x = element_text(color = "black", size=7), 
+        axis.text.y = element_text(color = "black", size=7), 
+        axis.title.y=element_text(color = "black", size=7),
+        axis.ticks.x = element_line(linetype = "dashed"),
+         aspect.ratio=1)
+  #force_panelsizes(rows = unit(1.6, "in"),cols = unit(2.4, "in")))
+  ggsave("Fig3c_revised.pdf",device=cairo_pdf, width=90, height= 60, units = "mm", dpi = 600)
 
-ggsave("Figure_3C.pdf",device=cairo_pdf, width=3, height= 2, units = "in", dpi = 300)
 
 ```
 

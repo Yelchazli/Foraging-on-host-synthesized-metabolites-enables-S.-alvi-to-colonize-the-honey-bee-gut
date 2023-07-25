@@ -98,12 +98,15 @@ avg_data <- tech_avg_data %>%
   mutate(across(where(is.numeric), round, 3),
          Sd_abundance = case_when(Sd_abundance < 0.005 ~ 0.005,
                                   TRUE ~ Sd_abundance))
-
+# Remove Asp [234] 390; Cit [12345] 431; Glu [2345] 330; Hpro 416
 avg_Enrichments <- avg_data %>%
-  filter(MI == 0 & Metabolite != "Pyrdc" & Metabolite != "Urate") %>%
+  filter(MI == 0 & Metabolite != "Pyrdc" & Metabolite != "Urate" & Metabolite != "Hpro" & 
+           Metabolite != "Gln" &Metabolite != "Fum") %>%
   filter(Metabolite != "Nle") %>%
   filter(MW %in% c("260","418","459","287","431","432","246","315","416",
                    "274","320","336","286","330","390","289","466","567"))%>%
+  filter(!((Metabolite == "Asp" & MW == "390") |(Metabolite == "Cit" & MW == "431") | 
+           (Metabolite == "Glu" & MW == "330")))%>%
   mutate(Class = case_when(
            Metabolite == "Lac" | Metabolite == "Suc" |  Metabolite == "Fum" | Metabolite == "Glyc" |
              Metabolite == "HMG" | Metabolite == "Mal" | Metabolite == "Cit"  ~ "Carboxylate",
@@ -115,30 +118,36 @@ avg_Enrichments <- avg_data %>%
 ```
 ## Figure 3D
 ```{r, warning=FALSE}
+
 ggplot(avg_Enrichments, aes(x = Time, y = Mean_Enrichment))+
-  geom_point(aes(color = Class),size = 1.2,alpha =0.5,stroke =0, na.rm=T) +
-   stat_summary(aes(Time, Mean_Enrichment, colour=Class), geom = "line", fun = mean, alpha =0.5)+
+  stat_summary(aes(Time, Mean_Enrichment, fill=Class), geom = "ribbon", fun.data = mean_cl_boot, alpha=0.15)+
+  guides(fill = "none")+
+  #stat_summary(aes(Time, Mean_Enrichment, colour=Class), geom = "line", fun = mean,)+
+  geom_point(aes(color = Class),size = 1.5,stroke =0, na.rm=T) +
+  geom_line(aes(group=Metabolite, color = Class),size = 0.15,stroke =0, na.rm=F) +
   geom_hline(yintercept=1.08, col="black", linetype = "dashed") +
-  theme(axis.title.x = element_text(vjust = -0.6, size=8),
-    panel.background = element_rect(fill = "white", colour = "grey50") ,   legend.position = c(.7, .75),
-        axis.text.x = element_text(color = "black", size=8), 
+  theme(axis.title.x = element_text(vjust = -0.6, size=7),
+    panel.background = element_rect(fill = "white", colour = "grey50") ,legend.position = c(.7, .75),
+        axis.text.x = element_text(color = "black", size=7), 
         panel.border = element_rect(colour = "grey", fill=NA, size=1),
-        axis.text.y = element_text(color = "black", size=8),
-        axis.title.y =element_text(color = "black", size=8),
-        legend.text = element_text(color = "black", size=6), 
-        legend.title = element_text(color = "black", size=6),
-        plot.title = element_text(hjust = 0.5, size=8))+
-    #theme(plot.margin = unit(c(0.2,0.2,0.2,0.2), "cm"))+
+        axis.text.y = element_text(color = "black", size=7),
+        axis.title.y =element_text(color = "black", size=7),
+        legend.text = element_text(color = "black", size=7), 
+        legend.title = element_text(color = "black", size=7),
+         aspect.ratio=1)+
     scale_colour_manual(labels = c("Carboxylates", "EAA", "NEAA"),  
-                        values = c("blue3", "darkorange3", "springgreen3"))+
+                        values = c("#6388b4", "#ffae34", "#55ad89"))+ 
+  scale_fill_manual(labels = c("Carboxylates", "EAA", "NEAA"),  
+                        values = c("#6388b4", "#ffae34", "#55ad89"))+ 
+  #old colors:"blue3","darkorange3", "springgreen3"
   scale_y_continuous(limits=c(-2,100), breaks=seq(0, 100, 20))  +
   ylab(expression(""^13*"C"~"Enrichment"~" (%)"))+
     theme(legend.key.size = unit(0.4, 'cm'))+
   scale_x_continuous(name = "Time (h)", limits=c(0,50), breaks=seq(0, 50, 8))+
   annotate("text", x=10, y=6, size=2, label= "Natural Abundance")
- # force_panelsizes(rows = unit(1.6 ,"in"), cols = unit(2.4, "in"))
-#ggsave("Gut_13C_Enrichments_2.pdf",device=cairo_pdf, width=3, height= 2, units = "in", dpi = 300)
-write_xlsx(avg_Enrichments, "Dataset_S2.xlsx")
+#ggsave("Fig3d_revised2.pdf",device=cairo_pdf, width=90, height= 60, units = "mm", dpi = 600)
+
+#write_xlsx(avg_Enrichments, "Dataset_S2.xlsx")
 
 ```
 
@@ -188,13 +197,17 @@ ggplot(subset(avg_data, Metabolite %in% c("Cit","HMG") & MW %in% c("459","315"))
   geom_errorbar( width=0.2, color="black") +
   scale_fill_brewer(palette = "Reds") +
   theme(panel.background = element_rect(fill = "white", colour = "grey50"), legend.position = "bottom", 
-        axis.text.x = element_text(color = "black", size=12), axis.text.y = element_text(color = "black", size=10),
-        axis.title.x =element_text(color = "black", size=16), axis.title.y =element_text(color = "black", size=16),
-        legend.text = element_text(color = "black", size=14), legend.title = element_text(color = "black", size=14),
-        plot.title = element_text(hjust = 0.5, size=18),
-        strip.text.x = element_text(size = 10, color = "black"), 
-        strip.text.y = element_text(size = 10, color = "black"),
-        strip.background = element_rect(color="grey50", fill="white", size=0.5, linetype="solid"))+
+        axis.text.x = element_text(color = "black", size=7), 
+        axis.text.y = element_text(color = "black", size=7),
+        axis.title.x =element_text(color = "black", size=7), 
+        axis.title.y =element_text(color = "black", size=7),
+        legend.text = element_text(color = "black", size=7), 
+        legend.title = element_text(color = "black", size=7),
+        plot.title = element_text(hjust = 0.5, size=7),
+        strip.text.x = element_text(size = 7, color = "black"), 
+        strip.text.y = element_text(size = 7, color = "black"),
+        strip.background = element_rect(color="grey50", fill="white", size=0.5, linetype="solid"),
+         aspect.ratio=1)+
   scale_y_continuous(name = "Abundance",limits=c(0,1), breaks=seq(0, 1, 0.1))  +
   scale_x_discrete(name = "Mass Isotopologue (n+i)")+
   ggtitle("Citrate | 3Hmg") +
