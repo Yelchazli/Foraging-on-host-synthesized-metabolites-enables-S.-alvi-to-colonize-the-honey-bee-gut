@@ -291,36 +291,28 @@
                                          levels = c("MD_P", "Sn_SW", "Sn_P", "Gi_SW", "Gi_P", "Sn_Gi_SW", "Sn_Gi_P"))
     results_sig$Abundance <- factor(results_sig$Abundance, 
                                          levels = c("UP", "DOWN", "NO"))
-    Host <- results_sig %>%
-      filter(Condition == "Sn_SW" | Condition == "Sn_P")%>%
-      filter(Abundance == "DOWN")
-
-    Diet <- results_sig %>%
-      filter(Condition == "MD_P" | Condition == "Sn_P")
-      
-    Microbe <- results_sig %>%
-      filter(Condition %in% c("Sn_Gi_SW","Sn_Gi_P","Gi_SW","Gi_P"))
-
 
     results_sig_sn <- results_sig %>%
       filter(Condition == "Sn_SW" | Condition == "Sn_P" ) 
 
     results_sig_1 <- results_sig %>%
-      filter(Condition != "MD_P") %>%
       mutate(Food = case_when(str_detect(Condition, "_P") ~ "Pollen",
                               TRUE ~ "Sugar water"),
              Colonization = case_when(str_detect(Condition, "Sn_SW") ~ "Sn",
                                       str_detect(Condition, "Sn_P") ~ "Sn",
                                       str_detect(Condition, "Sn_Gi_SW") ~ "Sn+Gi",
                                       str_detect(Condition, "Sn_Gi_P") ~ "Sn+Gi",
-                                      TRUE ~ "Gi" ),
+                                      str_detect(Condition, "Gi_SW") ~ "Gi",
+                                      str_detect(Condition, "Gi_P") ~ "Gi",
+                                      TRUE ~ "MF" ),
              Food = fct_relevel(Food, "Sugar water", "Pollen"),
-             Colonization = fct_relevel(Colonization, "Sn", "Sn+Gi", "Gi"))%>%
+             Colonization = fct_relevel(Colonization,"MF",  "Sn", "Sn+Gi", "Gi"))%>%
       ungroup() %>%
         add_count(siglabel, name = "Shared")
-      results_sig_1$Shared[results_sig_1$Shared == 1236] <- 0
+
+    results_sig_1$Shared[results_sig_1$Shared == 1338] <- 0
         results_sig_1 <- results_sig_1 %>%
-          mutate(siglabel = case_when(Shared > 2 ~siglabel, TRUE ~ NA_integer_))
+          mutate(siglabel = case_when(Shared > 1 ~siglabel, TRUE ~ NA_integer_))
 
     Sig_count <- results_sig %>%
       group_by(Condition) %>%
@@ -331,7 +323,7 @@
 
 ## Generate volcano-plots. Figure 1B, Figure S2
 
-![](Bee-gut-metabolomics_files/figure-markdown_strict/unnamed-chunk-5-1.png)![](Bee-gut-metabolomics_files/figure-markdown_strict/unnamed-chunk-5-2.png)![](Bee-gut-metabolomics_files/figure-markdown_strict/unnamed-chunk-5-3.png)
+![](Bee-gut-metabolomics_files/figure-markdown_strict/unnamed-chunk-5-1.png)![](Bee-gut-metabolomics_files/figure-markdown_strict/unnamed-chunk-5-2.png)
 
 \##Calculate Z-Scores of metabolites
 
@@ -5311,19 +5303,19 @@ X233
 
     ## Ploting graph of length 233  ...
 
-    ## Succcessfully saved to ->  Z:/DMF/GROUPS/gr_Engel/lab_resources/Manuscripts/2022_Quinn_Elchazli_host_feeding/Github_repo/AQuinn_YElChazli_NatMicrobiol_2022/Fig_1_Metabolomics/residual.pdf
+    ## Succcessfully saved to ->  Y:/DMF/GROUPS/gr_Engel/lab_resources/Manuscripts/2022_Quinn_Elchazli_host_feeding/Github_repo/AQuinn_YElChazli_NatMicrobiol_2022/Fig_1_Metabolomics/residual.pdf
 
     plot(fitMet, type='fixeff')
 
     ## Ploting graph of length 1  ...
 
-    ## Succcessfully saved to ->  Z:/DMF/GROUPS/gr_Engel/lab_resources/Manuscripts/2022_Quinn_Elchazli_host_feeding/Github_repo/AQuinn_YElChazli_NatMicrobiol_2022/Fig_1_Metabolomics/fixEffect.pdf
+    ## Succcessfully saved to ->  Y:/DMF/GROUPS/gr_Engel/lab_resources/Manuscripts/2022_Quinn_Elchazli_host_feeding/Github_repo/AQuinn_YElChazli_NatMicrobiol_2022/Fig_1_Metabolomics/fixEffect.pdf
 
     plot(fitMet, type='randeff') 
 
     ## Ploting graph of length 233  ...
 
-    ## Succcessfully saved to ->  Z:/DMF/GROUPS/gr_Engel/lab_resources/Manuscripts/2022_Quinn_Elchazli_host_feeding/Github_repo/AQuinn_YElChazli_NatMicrobiol_2022/Fig_1_Metabolomics/randomEffect.pdf
+    ## Succcessfully saved to ->  Y:/DMF/GROUPS/gr_Engel/lab_resources/Manuscripts/2022_Quinn_Elchazli_host_feeding/Github_repo/AQuinn_YElChazli_NatMicrobiol_2022/Fig_1_Metabolomics/randomEffect.pdf
 
     plot(fitMet, type='chisq')
 
@@ -9316,7 +9308,7 @@ X233
     getFixCoeff(fitMet, save=TRUE) 
 
     ## Exporting table of length 1 
-    ## Succcessfully saved to ->  Z:/DMF/GROUPS/gr_Engel/lab_resources/Manuscripts/2022_Quinn_Elchazli_host_feeding/Github_repo/AQuinn_YElChazli_NatMicrobiol_2022/Fig_1_Metabolomics/output.csv
+    ## Succcessfully saved to ->  Y:/DMF/GROUPS/gr_Engel/lab_resources/Manuscripts/2022_Quinn_Elchazli_host_feeding/Github_repo/AQuinn_YElChazli_NatMicrobiol_2022/Fig_1_Metabolomics/output.csv
 
     ##       (Intercept)       FoodP           Sn1          Gi1 Pr(Chi).Food
     ## X1   -0.618147968  1.32392921  0.1743553232 -0.224269301 9.489392e-15

@@ -2,7 +2,7 @@
 title: "Bee Gut Metabolomics"
 author: "Andrew Quinn"
 date: "25/01/2021"
-output: md_document
+output: html_document
 always_allow_html: true
 ---
 # Analysis of gut metabolomics dataset for (Figure 1B, 1C, S3)
@@ -301,36 +301,28 @@ results_sig$Condition <- factor(results_sig$Condition,
                                      levels = c("MD_P", "Sn_SW", "Sn_P", "Gi_SW", "Gi_P", "Sn_Gi_SW", "Sn_Gi_P"))
 results_sig$Abundance <- factor(results_sig$Abundance, 
                                      levels = c("UP", "DOWN", "NO"))
-Host <- results_sig %>%
-  filter(Condition == "Sn_SW" | Condition == "Sn_P")%>%
-  filter(Abundance == "DOWN")
-
-Diet <- results_sig %>%
-  filter(Condition == "MD_P" | Condition == "Sn_P")
-  
-Microbe <- results_sig %>%
-  filter(Condition %in% c("Sn_Gi_SW","Sn_Gi_P","Gi_SW","Gi_P"))
-
 
 results_sig_sn <- results_sig %>%
   filter(Condition == "Sn_SW" | Condition == "Sn_P" ) 
 
 results_sig_1 <- results_sig %>%
-  filter(Condition != "MD_P") %>%
   mutate(Food = case_when(str_detect(Condition, "_P") ~ "Pollen",
                           TRUE ~ "Sugar water"),
          Colonization = case_when(str_detect(Condition, "Sn_SW") ~ "Sn",
                                   str_detect(Condition, "Sn_P") ~ "Sn",
                                   str_detect(Condition, "Sn_Gi_SW") ~ "Sn+Gi",
                                   str_detect(Condition, "Sn_Gi_P") ~ "Sn+Gi",
-                                  TRUE ~ "Gi" ),
+                                  str_detect(Condition, "Gi_SW") ~ "Gi",
+                                  str_detect(Condition, "Gi_P") ~ "Gi",
+                                  TRUE ~ "MF" ),
          Food = fct_relevel(Food, "Sugar water", "Pollen"),
-         Colonization = fct_relevel(Colonization, "Sn", "Sn+Gi", "Gi"))%>%
+         Colonization = fct_relevel(Colonization,"MF",  "Sn", "Sn+Gi", "Gi"))%>%
   ungroup() %>%
     add_count(siglabel, name = "Shared")
-  results_sig_1$Shared[results_sig_1$Shared == 1236] <- 0
+
+results_sig_1$Shared[results_sig_1$Shared == 1338] <- 0
     results_sig_1 <- results_sig_1 %>%
-      mutate(siglabel = case_when(Shared > 2 ~siglabel, TRUE ~ NA_integer_))
+      mutate(siglabel = case_when(Shared > 1 ~siglabel, TRUE ~ NA_integer_))
 
 Sig_count <- results_sig %>%
   group_by(Condition) %>%
@@ -345,66 +337,46 @@ Sig_count <- results_sig %>%
 ```{r, echo=FALSE, warning=FALSE}
 library(ggrepel)
 
-  ggplot(data=results_sig, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
+  ggplot(data=results_sig_1, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
    geom_point(alpha = 0.7, size=1, stroke=0) + 
    #geom_text_repel(size=2.0, force=3) +
    theme(text=element_text(size=8,  family="Arial"),
         panel.background = element_rect(fill = "white", colour = "grey50"),
         panel.border = element_rect(colour = "grey", fill=NA, size=1),
-        axis.text.x = element_text(color = "black", size=5, angle = 90, vjust= 0.5), axis.text.y = element_text(color = "black", size=8),
-        axis.title.x =element_text(color = "black", size=8), axis.title.y =element_text(color = "black", size=8),
+        axis.text.x = element_text(color = "black", size=5, angle = 90, 
+                                   vjust= 0.5), axis.text.y = element_text(color = "black", size=8),
+        axis.title.x =element_text(color = "black", size=8), 
+        axis.title.y =element_text(color = "black", size=8),
          legend.position = "none")+
    geom_vline(xintercept=c(-0.6, 0.6), col="#3F5151", linetype = "dotted") +
    geom_hline(yintercept=-log10(0.05), col="#3F5151", linetype = "dotted") +
    scale_x_continuous(name="Log2 (Fold Change)",limits=c(-12,12), breaks=seq(-12, 12, 3))+
    scale_y_continuous(name="-Log10 (p-value)",limits=c(0,7), breaks=seq(0, 7, 1))+
    scale_color_manual(values=c("orangered1","steelblue2", "grey70")) +
-   facet_wrap(~Condition, nrow =1, labeller = as_labeller(c("MD_P"="MD (P)", "Sn_SW"="Sn","Sn_P"="Sn (P)","Gi_SW"="Gi", 
-                                                            "Gi_P"="Gi (P)","Sn_Gi_SW"="Sn+Gi","Sn_Gi_P"="Sn+Gi (P)")))
- 
- #  ggsave("Sn_All_volcano_facet_v2.pdf",device=cairo_pdf, width=6, height= 3, units = "in", dpi = 300) 
+    facet_grid(vars(Food), vars(Colonization))
+  # ggsave("Sn_All_volcano_facet_v3.pdf",device=cairo_pdf, width=6, height= 4, units = "in", dpi = 300) 
   
- ggplot(data=results_sig_1, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
-   geom_point(alpha = 0.7, size=1.0, stroke=0) + 
-   #geom_text_repel(size=1.0, force=1, nudge_y = 0.5) +
-   theme(panel.background = element_rect(fill = "white", colour = "grey50"),
-         strip.background = element_rect(fill="white", size = 3),
-         strip.text=element_text(color = "black", size=8),
-         legend.position = "none", 
-         axis.text.x = element_text(color = "black", size=6),
-         axis.text.y = element_text(color = "black", size=6),
-         axis.title.x = element_text(color = "black",size = 8, face = "bold"), 
-         axis.title.y = element_text(color = "black",size = 8, face = "bold")) +
-   geom_vline(xintercept=c(-0.6, 0.6), col="#3F5151", linetype = "dashed", size=0.25) +
-   geom_hline(yintercept=-log10(0.05), col="#3F5151", linetype = "dashed", size =0.25) +
-   geom_text(size=1.0, nudge_y = 0.25) +
-   scale_x_continuous(name="Log2 (Fold Change)",limits=c(-10,10), breaks=seq(-10, 10, 5))+
-   scale_y_continuous(name="-Log10 (p-Value)",limits=c(0,6), breaks=seq(0, 6, 1))+
-   scale_color_manual(values=c("orangered1","steelblue2", "grey70")) +
-   facet_grid(vars(Food), vars(Colonization))
- # ggsave("Sn_Gi_volcano_facet_4.pdf",device=cairo_pdf, width=6, height= 4, units = "in", dpi = 300) 
- 
-   ggplot(data=results_sig_sn, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
+  ggplot(data=results_sig_sn, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
    geom_point(alpha = 0.7, size=1.5, stroke=0) + 
    #geom_text_repel(size=1.0, force=1, nudge_y = 0.5) +
    theme(panel.background = element_rect(fill = "white", colour = "grey50"),
          strip.background = element_rect(fill="white", size = 3),
-         strip.text=element_text(color = "black", size=8),
-         legend.position = "none", 
-         axis.text.x = element_text(color = "black", size=6),
-         axis.text.y = element_text(color = "black", size=6),
-         axis.title.x = element_text(color = "black",size = 8, face = "bold"), 
-         axis.title.y = element_text(color = "black",size = 8, face = "bold")) +
+         strip.text=element_text(color = "black", size=7),
+         panel.border = element_rect(colour = "grey", fill=NA, size=1),
+         axis.text.x = element_text(color = "black", size=7), 
+         axis.text.y = element_text(color = "black", size=7),
+         axis.title.x =element_text(color = "black", size=7), 
+         axis.title.y =element_text(color = "black", size=7),
+         legend.position = "none",
+         aspect.ratio=1) +
    geom_vline(xintercept=c(-0.6, 0.6), col="#3F5151", linetype = "dashed", size=0.25) +
    geom_hline(yintercept=-log10(0.05), col="#3F5151", linetype = "dashed", size =0.25) +
    scale_x_continuous(name="Log2 (Fold Change)",limits=c(-10,10), breaks=seq(-10, 10, 5))+
    scale_y_continuous(name="-Log10 (p-Value)",limits=c(0,6), breaks=seq(0, 6, 1))+
    scale_color_manual(values=c("orangered1","steelblue2", "grey70")) +
    facet_wrap(~Condition, nrow =1, labeller = as_labeller(c("Sn_SW"="Sugar Water", "Sn_P"="Pollen")))
- #  ggsave("Sn_volcano_facet_F2.pdf",device=cairo_pdf, width=4, height= 3, units = "in", dpi = 300) 
+  # ggsave("Figure1B_revised.pdf",device=cairo_pdf, width=90, height= 60, units = "mm", dpi = 600) 
 
-
-   
 ```
 
 ##Calculate Z-Scores of metabolites
@@ -459,17 +431,17 @@ metab_lmm$Bee_exp <- factor(metab_lmm$Bee_exp)
 library(lmm2met)
 fitMet = fitLmm(fix= c('Food','Sn',"Gi"), random='(1|Bee_exp)', data=metab_lmm, start=6, end=238)
 
-plot(fitMet, type='coeff')
+#plot(fitMet, type='coeff')
 
-plot(fitMet, type='residual') 
+#plot(fitMet, type='residual') 
 
-plot(fitMet, type='fixeff')
+#plot(fitMet, type='fixeff')
 
-plot(fitMet, type='randeff') 
+#plot(fitMet, type='randeff') 
 
-plot(fitMet, type='chisq')
+#plot(fitMet, type='chisq')
 
-getFixCoeff(fitMet, save=TRUE) 
+#getFixCoeff(fitMet, save=TRUE) 
 
 list2env(fitMet,envir = .GlobalEnv)
 
@@ -511,27 +483,29 @@ lmm_output_sig <- lmm_output %>%
 
 ## Generate fixed effects plot for Figure 1C
 ```{r, echo=FALSE, warning=FALSE}
+library(ggrepel)
 
-ggplot(data=lmm_output_sig, aes(x=Sn, y=Gi, color=Pollen, label=siglabel)) + 
+ggplot(data=lmm_output_sig, aes(x=Sn, y=Gi, fill=Pollen, label=siglabel)) + 
   geom_vline(xintercept=0, col="black", linetype = "solid") +
   geom_hline(yintercept=0, col="black", linetype = "solid") +
   geom_vline(xintercept=-.4, col="grey", linetype = "dashed", size=0.25) +
   geom_vline(xintercept=.4, col="grey", linetype = "dashed", size=0.25) +
   geom_hline(yintercept=-.4, col="grey", linetype = "dashed", size=0.25) +
   geom_hline(yintercept=.4, col="grey", linetype = "dashed", size=0.25)+
-  geom_point(size=1) +
+  geom_point(size=2.5,color = "black", shape=21, size = 1.5, stroke=0.25) +
   theme(panel.background = element_rect(fill = "white", colour = "black"),
         panel.border = element_rect(colour = "grey", fill=NA, size=1),
         strip.background = element_rect(fill="white",colour = "black"),
         legend.position = "right",
-        axis.text.x = element_text(color = "black", size=6),
-        axis.text.y = element_text(color = "black", size=6),
-        axis.title.x = element_text(color = "black", size=8), 
-        axis.title.y = element_text(color = "black", size=8),
-        legend.text=element_text(color = "black", size=6),
-        legend.title=element_text(color = "black", size=6))+
-  geom_text_repel(size = 2, max.overlaps = Inf, color="slategrey")+
-    binned_scale(aesthetics = "color",
+        axis.text.x = element_text(color = "black", size=7),
+        axis.text.y = element_text(color = "black", size=7),
+        axis.title.x = element_text(color = "black", size=7), 
+        axis.title.y = element_text(color = "black", size=7),
+        legend.text=element_text(color = "black", size=7),
+        legend.title=element_text(color = "black", size=7),
+        aspect.ratio=1)+
+  #geom_text_repel(size = 2, max.overlaps = Inf, color="slategrey")+
+    binned_scale(aesthetics = "fill",
                scale_name = "stepsn", 
                palette = function(x) c( "#313695","#4575B4","#74ADD1","#ABD9E9","grey",
                                         "#FDAE61","#F46D43","#D73027","#A50026"),
@@ -543,7 +517,7 @@ ggplot(data=lmm_output_sig, aes(x=Sn, y=Gi, color=Pollen, label=siglabel)) +
                      breaks=seq(-1.25,1.25, 0.25), labels = scales::comma)+
   scale_y_continuous(name="Effect Size (Gilliamella)",limits=c(-1.25,1.25), 
                      breaks=seq(-1.25,1.25, 0.25), labels =  scales::comma)
-#ggsave("Effect_size_1C.pdf",device=cairo_pdf, width=5, height= 3, units = "in", dpi = 300) 
+#  ggsave("Figure1C_revised_v2.pdf",device=cairo_pdf, width=105, height= 90, units = "mm", dpi = 600) 
 
 ```
 
