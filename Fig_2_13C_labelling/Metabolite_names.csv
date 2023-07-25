@@ -1,0 +1,95 @@
+Name_NIST_untargeted,Metabolite
+"Propylene glycol, 2TMS derivative ",Propylene glycol
+"Lactic Acid, 2TMS derivative ",Lactate
+"L-Alanine, 2TMS derivative ",Alanine
+"Oxalic acid, 2TMS derivative ",Oxalate
+"3-Hydroxybutyric acid, 2TMS derivative ",3-Hydroxybutyrate
+"Urea, 3TMS derivative ",Urea
+".beta.-Alanine, 2TMS derivative ",b-Alanine
+"Valine, 2TMS derivative ",Valine
+"L-Norvaline, 2TMS derivative ",Norvaline
+"Urea, 2TMS derivative ",Urea_2
+"L-Isoleucine, 2TMS derivative ",Isoleucine
+"L-Proline, 2TMS derivative ",Proline
+"Glycine, 3TMS derivative ",Glycine
+"Butanedioic acid, 2TMS derivative ",Succinate
+"L-Norleucine, 2TMS derivative ",Norleucine
+"Glyceric acid, 3TMS derivative ",Glycerate
+"Pipecolic acid, 2TMS derivative ",Pipecolate
+"Uracil, 2TMS derivative ",Uracil
+"2-Butenedioic acid, (E)-, 2TMS derivative ",Fumarate
+"Serine, 3TMS derivative ",Serine
+"L-Threonine, 3TMS derivative ",Threonine
+"Pyrimidine, 5-methyl-2,4-bis[(trimethylsilyl)oxy]- ",Thymine
+"Pentanedioic acid, 2TMS derivative ",Glutarate
+".beta.-Alanine, 3TMS derivative ",b-Alanine_2
+"Diethanolamine, 3TMS derivative ",Diethanolamine
+"Timonacic, 2TMS derivative ",Timonacic
+"Malic acid, 3TMS derivative ",Malate
+"Erythritol, 4TMS derivative ",Erythritol
+"3,7-dioxa-2,8-disilanonane, 2,2,8,8-tetramethyl-5,5-bis[[(trimethylsilyl)oxy]methyl]- ",Pentaerythritol
+"Erythritol, 4TMS derivative_2 ",Erythritol_2
+"L-Aspartic acid, 3TMS derivative ",Aspartate
+"L-Methionine, 2TMS derivative ",Methionine
+"L-Hydroxyproline, (E)-, 3TMS derivative ",Hydroxyproline
+"L-5-Oxoproline, , 2TMS derivative ",5-Oxoproline
+"2,3,4-Trihydroxybutyric acid tetrakis(trimethylsilyl) deriv., (, (R*,R*)-) ",Threonate
+"Pentanedioic acid, 2-(methoxyimino)-, bis(trimethylsilyl) ester ",a-Ketoglutarate
+"Cysteine, 3TMS derivative ",Cysteine
+"2,3,4-Trihydroxybutyric acid tetrakis(trimethylsilyl) deriv., (, (R*,R*)-)_2 ",Threonate_2
+"Pentanedioic acid, 2-(methoxyimino)-, bis(trimethylsilyl) ester_2 ",a-Ketoglutarate_2
+"Pentanedioic acid, 3-methyl-3-[(trimethylsilyl)oxy]-, bis(trimethylsilyl) ester ",3Hmg
+"L-Ornithine, 3TMS derivative ",Ornithine
+"L-Glutamic acid, 3TMS derivative ",Glutamate
+"L-Phenylalanine, 2TMS derivative ",Phenylalanine
+"Triethanolamine, 3TMS derivative ",Triethanolamine
+"3-Hydroxybenzoic acid, 2TMS derivative ",3-Hydroxybenzoate
+"Tartaric acid, 4TMS derivative ",Tartrate
+1-(2-(3-Cyclohexenyl)ethyl)silatrane ,1-2-3-Cyclohexenyl-ethyl-silatrane
+"Ribonic acid, 2-desoxy-tetrakis-O-(trimethylsilyl)- ",2-Deoxyribonate
+"d-Ribose, 2,3,4,5-tetrakis-O-(trimethylsilyl)-, O-methyloxime ",Ribose
+"Pentanedioic acid, 2,3-bis[(trimethylsilyl)oxy]-, bis(trimethylsilyl) ester, (R*,S*)- ","2,3-Dihydroxypentanedioate"
+"Isocitric acid lactone, 2TMS derivative ",Isocitric lactone
+"Xylitol, 5TMS derivative ",Xylitol
+"Xylitol, 5TMS derivative_2 ",Xylitol_2
+"Putrescine, 4TMS derivative ",Putrescine
+"Aconitic acid, (Z)-, 3TMS derivative ",Aconitate
+"2-Keto-l-gluconic acid, penta(O-trimethylsilyl)- ",2-Keto-gluconate
+"Phosphoric acid, bis(trimethylsilyl) 2,3-bis[(trimethylsilyl)oxy]propyl ester ",Glycerol-3-phosphate
+"Vanillic Acid, 2TMS derivative ",Vanillate
+"L-Glutamine, 3TMS derivative ",Glutamine
+"1,3-Dioxolane ","1,3-Dioxolane"
+"Phosphorylethanolamine, 4TMS derivative ",Phosphorylethanolamine
+"9H-Purin-6-ol, 2TMS derivative ",Hypoxanthine
+"Citric acid, 4TMS derivative ",Citrate
+"Protocatechoic acid, 3TMS derivative ",Protocatechoate
+"Pentaric acid, 2,3-dideoxy-4-O-(trimethylsilyl)-3-[[(trimethylsilyl)oxy]carbonyl]-, bis(trimethylsilyl) ester ",Isocitrate
+"Cadaverine, 4TMS derivative ",Cadaverine
+"Methylcitric acid, tetrakis(O-trimethylsilyl)- ",Methylcitrate
+Quininic acid (5TMS) ,Quininate
+"D-Pinitol, pentakis(trimethylsilyl) ether ",Pinitol
+"D-Fructose, 1,3,4,5,6-pentakis-O-(trimethylsilyl)-, O-methyloxime ",Fructose
+"D-Fructose, 1,3,4,5,6-pentakis-O-(trimethylsilyl)-, O-methyloxime_2 ",Fructose_2
+"Neo-Inositol, 6TMS derivative ",neo-Inositol
+"D-(+)-Talose, pentakis(trimethylsilyl) ether, methyloxime (syn) ",Talose
+"D-Allose, pentakis(trimethylsilyl) ether, methyloxime (anti) ",Allose
+"L-Lysine, 4TMS derivative ",Lysine
+"D-Glucitol, 6TMS derivative ",Glucitol
+"L-Tyrosine, 3TMS derivative ",Tyrosine
+"1,2,3,4,5,6-Hexa-O-trimethelsilyl-myo-inositol ",myo-Inositol
+(E)-bis(trimethylsilyl) dec-2-enedioate ,2-Dodecenedioate
+"D-Gluconic acid, 6TMS derivative ",Gluconate
+"Scyllo-Inositol, 6TMS derivative ",Scyllo-Inositol
+"N-Acetyl-D-glucosamine, tetrakis(trimethylsilyl) ether, methyloxime (syn) ",N-AcetyD-glucosamine
+"N-Acetyl-D-glucosamine, tetrakis(trimethylsilyl) ether, methyloxime (syn)_2 ",N-AcetyD-glucosamine_2
+"1,2,3,4,5,6-Hexa-O-trimethelsilyl-myo-inositol_2 ",myo-Inositol_2
+"9H-Purine, 9-(trimethylsilyl)-2,6,8-tris[(trimethylsilyl)oxy]- ",Urate
+"7H-Purin-2-amine, 7-methyl-N-(trimethylsilyl)-6-[(trimethylsilyl)oxy]- ",7-Methylguanine
+"Kynurenine, 3TMS derivative ",Kynurenine
+"L-Tryptophan, 3TMS derivative ",Tryptophan
+"Phosphoric acid, bis(trimethylsilyl) 2,3-bis[(trimethylsilyl)oxy]propyl ester_2 ",Glycerol-3-phosphate_2
+"Thymidine, 3TMS derivative ",Thymidine
+"2'-Deoxyinosine, tris(trimethylsilyl) derivative ",2-Deoxyinosine
+"Inosine, 4TMS derivative ",Inosine
+"Sucrose, 8TMS derivative ",Sucrose
+"Adenosine, 4TMS derivative ",Adenosine

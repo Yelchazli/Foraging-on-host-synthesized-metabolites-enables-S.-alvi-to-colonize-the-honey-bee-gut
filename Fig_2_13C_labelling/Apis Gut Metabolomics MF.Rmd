@@ -1,0 +1,570 @@
+---
+title: "Apis gut metabolomics MF"
+author: "Andrew Quinn"
+date: "07/11/2023"
+output: html_document
+
+---
+
+# Gut metabolomics of microbiota free honey bees at day 0 and day 6 after emergence
+
+#### These are the required package to reproduce this analysis. Uncomment to download
+```{r, echo = T, eval=T, message=F, warning=F}
+
+#required_packages = c(  "readxl",  "tidyverse",    "RColorBrewer" ,"ggpubr","EnvStats", "stats", #"wesanderson", "ggsci", "lubridate" )
+#need_install = required_packages[!(required_packages) %in% installed.packages()]
+
+#if (length(need_install) > 0){
+#  install.packages((need_install))
+#}
+
+#lapply(required_packages, require, character.only=T)
+
+#dir_script = dirname(rstudioapi::getSourceEditorContext()$path)
+
+#setwd(dir_script)
+
+```
+
+## Load libraries and data
+## Convert to tidy dataframe 
+
+```{r, message=F, warning=F}
+library(tidyverse)
+library(readxl)
+library(RColorBrewer)
+library(wesanderson)
+library(ggsci)
+library(EnvStats)
+library(ggpubr)
+library(lubridate)
+library(stats)
+library(corrplot)
+library(tidyr)
+
+Quant_table <- read_csv("Quant_table_untargeted.csv")
+Metab_names <- read_csv("Metabolite_names.csv")
+
+results_wide <- Quant_table %>%
+  pivot_longer(
+   cols =  c("Propylene glycol, 2TMS derivative":"Adenosine, 4TMS derivative"),
+   names_to = "Name_NIST_untargeted",
+   values_to = "Response",
+   values_drop_na = FALSE) %>%
+  select(-"Data File",-"Acq. Date-Time",-"Vial")
+
+results <- results_wide %>%
+  inner_join(Metab_names, by = "Name_NIST_untargeted")%>%
+  mutate(Order = str_extract(Sample_Name, "\\d"),
+    Day = case_when(
+    str_detect(Sample_Name, "_0d") ~ 0,
+    str_detect(Sample_Name, "_6d") ~ 6),
+  Replicate = str_extract(Sample_Name, "_\\d_\\d"),
+  Replicate = str_sub(Replicate, 4, 4))
+
+results$Type <- factor(results$Type) 
+results$Day <- factor(results$Day)
+results$Replicate <- factor(results$Replicate)
+results$Metabolite <- factor(results$Metabolite)
+
+```
+
+##Need to deal with NA data and metabolites with many missing values
+## Convert NA(x) --> min(x)-1
+```{r, message=F, warning=F}
+results_trim <- results %>%
+  group_by(Metabolite) %>%
+   mutate_at("Response", function(x) ifelse(is.na(x), min(x, na.rm = T)-1, x)) 
+```
+
+## Lets look at total ion abundance 
+```{r, message=F, warning=F}
+Total_response <- results_trim %>%
+  select(-"Name_NIST_untargeted")%>%
+  filter(Type != "Blank") %>%
+  filter(Metabolite != "Norleucine" & Metabolite != "Norvaline" & 
+                 Metabolite != "Vanillate" & Metabolite != "Tartrate" & Metabolite != "3-Hydroxybutyrate") %>%
+  group_by(Sample_Name) %>%
+    mutate(total = sum(Response)) %>% 
+  ungroup() %>%
+  group_by(Day) %>%
+  mutate(TIC_avg = mean(total),
+         TIC_norm = total / TIC_avg)
+
+ggplot(subset(Total_response, Metabolite %in% "Alanine"), mapping = aes(x = Day, y = total)) +
+  geom_violin(scale = "count", na.rm = TRUE, alpha = 0.5, trim = TRUE, aes(x = Day, y = total)) +
+  geom_jitter(aes(x = Day, y = total, color=Day),width = 0.10, height = 0) +
+  stat_summary(fun = median, geom = "point", size = 2, shape = 24, fill = "white", na.rm = TRUE) +
+  stat_n_text(na.rm = TRUE, size = 4) +
+  theme(panel.background = element_rect(fill = "white", colour = "grey50"), 
+        legend.position = "right", axis.text.x = element_text(color = "black", size=7)) +
+  scale_y_continuous(name="Sum of Ion Response") +
+  stat_compare_means(method = "kruskal.test")
+
+```
+
+## Analyze ISTD for uniformity in samples
+### Replace ISTD values that fall outside of the error bounds. 
+```{r, message=F, warning=F}
+
+Internal_std <- filter(results_trim, Metabolite == "Norleucine" | Metabolite == "Norvaline" | Metabolite == "Vanillate" | Metabolite == "Tartrate" | Metabolite == "3-Hydroxybutyrate") %>%
+  filter(Type != "Blank")
+
+ggplot(data = Internal_std, mapping = aes(x=fct_reorder(Sample_Name,Order), y = Response)) +
+  geom_point(aes(color=Metabolite)) +
+  theme(panel.background = element_rect(fill = "white", colour = "grey50"), 
+        legend.position = "right", axis.text.x = element_text(color = "black", size=7,angle=90)) +
+  scale_y_continuous(name="ISTD response") +
+  ggtitle("ISTD response") 
+
+Internal_std_fit <- Internal_std %>%
+  select(-"Name_NIST_untargeted")%>%
+  pivot_wider(names_from = Metabolite, values_from = Response)%>%
+  rename("BHydroxybutyrate"="3-Hydroxybutyrate")
+
+Internal_std_corr <- Internal_std_fit %>%
+  select('BHydroxybutyrate', 'Norvaline', 'Norleucine', 'Tartrate', 'Vanillate')
+
+Internal_std_corr <- cor(Internal_std_fit[, c('BHydroxybutyrate', 'Norvaline', 'Norleucine', 'Tartrate', 'Vanillate')])
+
+ggplot(data = Internal_std_fit) +
+  geom_point(aes(x = Norleucine, y = Norvaline), color = "black") +
+  geom_smooth(aes(x = Norleucine, y = Norvaline), color = "black",method = "lm", se = T)+
+  stat_cor(aes(x = Norleucine, y = Norvaline,label = after_stat(rr.label)),
+           label.y=1.2e+07, color = "black", geom = "label")+
+  geom_point(aes(x = Norleucine, y = Tartrate), color = "red") +
+  geom_smooth(aes(x = Norleucine, y = Tartrate), color = "red",method = "lm", se = T)+
+  stat_cor(aes(x = Norleucine, y = Tartrate,label = after_stat(rr.label)),
+           label.y=4.0e+06, color = "red", geom = "label")+
+  geom_point(aes(x = Norleucine, y = Vanillate), color = "blue") +
+  geom_smooth(aes(x = Norleucine, y = Vanillate), color = "blue",method = "lm", se = T)+
+  stat_cor(aes(x = Norleucine, y = Vanillate,label = after_stat(rr.label)),
+           label.y=8.0e+06, color = "blue", geom = "label")+
+  geom_point(aes(x = Norleucine, y = BHydroxybutyrate), color = "green") +
+  geom_smooth(aes(x = Norleucine, y = BHydroxybutyrate), color = "green",method = "lm", se = T)+
+  stat_cor(aes(x = Norleucine, y = BHydroxybutyrate,label = after_stat(rr.label)), 
+           label.y=2.5e+06,color = "green", geom = "label")+
+  theme(panel.background = element_rect(fill = "white", colour = "grey50"), 
+        legend.position = "right", axis.text.x = element_text(color = "black", size=7))
+
+```
+#Normalize Metabolite Responses to an ISTD
+```{r, message=F, warning=F}
+
+## Lets look at normalized total ion abundance
+Total_response_norm <- Total_response %>%
+  filter(Metabolite == "Alanine")%>%
+  select(-"Type", -"Metabolite", -"Day",-"Replicate")%>%
+  full_join(Internal_std_fit, by="Sample_Name")%>%
+  mutate(TIC_Bhb_norm = total / BHydroxybutyrate,
+         TIC_Nval_norm = total / Norvaline,
+         TIC_Nle_norm = total / Norleucine,
+    TIC_Tar_norm = total / Tartrate,
+    TIC_Van_norm = total / Vanillate)
+
+ggplot(data = Total_response_norm) +
+  geom_point(aes(x = total, y = Norleucine), color = "grey") +
+  geom_smooth(aes(x = total, y = Norleucine), color = "grey",method = "lm", se = T)+
+  stat_cor(aes(x = total, y = Norleucine,label = after_stat(rr.label)),
+           label.y=1.4e+07, color = "grey", geom = "label")+
+  geom_point(aes(x = total, y = Norvaline), color = "black") +
+  geom_smooth(aes(x = total, y = Norvaline), color = "black",method = "lm", se = T)+
+  stat_cor(aes(x = total, y = Norvaline,label = after_stat(rr.label)),
+           label.y=1.2e+07, color = "black", geom = "label")+
+  geom_point(aes(x = total, y = Tartrate), color = "red") +
+  geom_smooth(aes(x = total, y = Tartrate), color = "red",method = "lm", se = T)+
+  stat_cor(aes(x = total, y = Tartrate,label = after_stat(rr.label)),
+           label.y=5.0e+06, color = "red", geom = "label")+
+  geom_point(aes(x = total, y = Vanillate), color = "blue") +
+  geom_smooth(aes(x = total, y = Vanillate), color = "blue",method = "lm", se = T)+
+  stat_cor(aes(x = total, y = Vanillate,label = after_stat(rr.label)),
+           label.y=7.0e+06, color = "blue", geom = "label")+
+  geom_point(aes(x = total, y = BHydroxybutyrate), color = "green") +
+  geom_smooth(aes(x = total, y = BHydroxybutyrate), color = "green",method = "lm", se = T)+
+  stat_cor(aes(x = total, y = BHydroxybutyrate,label = after_stat(rr.label)), 
+           label.y=4e+06,color = "green", geom = "label")+
+  theme(panel.background = element_rect(fill = "white", colour = "grey50"), 
+        legend.position = "right", axis.text.x = element_text(color = "black", size=7))+
+  scale_y_continuous(name="ISTD_Resp") +
+  scale_x_continuous(name="TIC") +
+  facet_wrap(~Day.x,nrow=1)
+
+ggplot(data = Total_response_norm, mapping = aes(x = Day.x, y = TIC_Nle_norm)) +
+  geom_jitter(aes(x = Day.x, y = TIC_Nle_norm, color=Day.x),width = 0.10, height = 0) +
+  stat_n_text(na.rm = TRUE, size = 4) +
+  stat_summary(fun = mean, geom = "point", size = 2, shape = 24, fill = "black", na.rm = TRUE) +
+  stat_summary(fun = median, geom = "point", size = 2, shape = 22, fill = "black", na.rm = TRUE) +
+  theme(panel.background = element_rect(fill = "white", colour = "grey50"), 
+        legend.position = "right", axis.text.x = element_text(color = "black", size=7)) +
+  #scale_y_continuous(name="Sum of Ion Response_ISTD_Norm") +
+  stat_compare_means(method = "t.test") 
+
+## We will use the correlation plots to select the ISTD that on average (day 0, day 6) most correlates with signal intensity. This should provide the best smoothing of the data to account for sample to sample variation
+
+ISTD_cor_table <- results_trim %>%
+  filter(Type == "Bee") %>%
+  select(-"Name_NIST_untargeted", -"Order", -"Replicate", -"Type")%>%
+  pivot_wider(names_from = Metabolite, values_from = Response)
+
+ISTD_cor_table_d0 <- ISTD_cor_table %>%
+  filter(Day == 0) %>%
+  select(-"Sample_Name", -"Day")
+ 
+ISTD_cor_table_d6 <- ISTD_cor_table %>%
+  filter(Day == 6)%>%
+  select(-"Sample_Name", -"Day")
+
+ISTD_cor_d0<- cor(ISTD_cor_table_d0)%>%
+  as.data.frame %>%
+  select('3-Hydroxybutyrate', 'Norvaline', 'Norleucine', 'Tartrate', 'Vanillate') %>%
+  rownames_to_column(var = "Metabolite")%>%
+  rename_at(vars(-Metabolite),function(x) paste0(x,"_0d"))
+ISTD_cor_d6<- cor(ISTD_cor_table_d6)%>%
+  as.data.frame %>%
+  select('3-Hydroxybutyrate', 'Norvaline', 'Norleucine', 'Tartrate', 'Vanillate')%>%
+  rownames_to_column(var = "Metabolite")%>%
+  rename_at(vars(-Metabolite),function(x) paste0(x,"_6d"))
+
+ISTD_cor <- ISTD_cor_d0 %>%
+  full_join(ISTD_cor_d6, join_by = Metabolite)%>%
+  mutate(`3-Hydroxybutyrate` = (`3-Hydroxybutyrate_0d`+`3-Hydroxybutyrate_6d`)/2,
+  Norvaline=(Norvaline_0d + Norvaline_6d)/2,
+  Norleucine=(Norleucine_0d+Norleucine_6d)/2,
+  Tartrate=(Tartrate_0d+Tartrate_6d)/2,
+  Vanillate=(Vanillate_0d+Vanillate_6d)/2)%>% 
+  select(`3-Hydroxybutyrate`, Norvaline, Norleucine,Tartrate,Vanillate)%>%
+  rowwise()  
+  #mutate(ISTD = max.col(c(`3-Hydroxybutyrate`, Norvaline, Norleucine,Tartrate,Vanillate)))
+Metab_list <-  ISTD_cor_d6 %>%
+  select(Metabolite)
+Metab_ISTD_norm <- colnames(ISTD_cor)[max.col(ISTD_cor)] %>%
+  as.data.frame %>%
+  bind_cols(Metab_list)%>%
+  rename(ISTD = ".")
+  
+results_norm <- results_trim %>%
+  left_join(Metab_ISTD_norm, join_by= Metabolite) %>%
+  left_join(Internal_std_fit, join_by= c(Sample_Name,Type,Order,Day,Replicate))%>%
+  rename(Bhb = BHydroxybutyrate,Nval = Norvaline, Nle = Norleucine, Tar = Tartrate, Van = Vanillate)%>%
+  mutate(Response_norm = case_when(ISTD == '3-Hydroxybutyrate' ~ Response / Bhb,
+                                   ISTD == 'Norvaline' ~ Response / Nval,
+                                   ISTD == 'Norleucine' ~ Response / Nle,
+                                   ISTD == 'Tartrate' ~ Response / Tar,
+                                   ISTD == 'Vanillate' ~ Response / Van,
+                                    TRUE ~ Response))
+```
+
+## Fnd the z-score of each metabolite
+```{r, message=F, warning=F}
+
+results_center <- results_norm %>%
+  filter(Type == "Bee") %>%
+  filter(Metabolite != "Norleucine" & Metabolite != "Norvaline" & Metabolite != "Vanillate" & 
+           Metabolite != "Tartrate" & Metabolite != "3-Hydroxybutyrate")%>%
+  group_by(Metabolite) %>%
+  mutate(z_score = (Response_norm - mean(Response_norm))/sd(Response_norm))
+```
+
+##Calculate FC and p-values
+```{r, message=F, warning=F}
+results_group <- results_norm %>%
+  filter(Type == "Bee") %>%
+  filter(Metabolite != "Norleucine" & Metabolite != "Norvaline" & Metabolite != "Vanillate" & Metabolite != "Tartrate" & Metabolite != "3-Hydroxybutyrate")%>%
+  group_by(Day, Metabolite) %>%
+  summarise(med = median(Response_norm),
+            sd = sd(Response_norm),
+            n = n())
+
+results_group_wide <- results_group %>%
+  pivot_wider(names_from = Day, values_from = c(med, sd, n))%>%
+  mutate(FC = med_6 / med_0,
+         Log_FC = log2(FC),
+         stdev_fc = FC*sqrt((sd_6/med_6)^2 + (sd_0/med_0)^2))
+  
+## Need to calculate p-values
+
+p_value <- results_norm %>%
+  filter(Type == "Bee")%>%
+  filter(Metabolite != "Norleucine" & Metabolite != "Norvaline" & Metabolite != "Vanillate" & Metabolite != "Tartrate" & Metabolite != "3-Hydroxybutyrate")
+
+p_value <- compare_means(Response_norm ~ Day, data = p_value, 
+                         group.by = "Metabolite", ref.group = "0", p.adjust.method = "BH")
+  
+p_value <- p_value %>%
+    mutate(Log10_p = -log10(p.adj)) %>%
+  rename(Day = group2)
+
+results_group_wide <- merge(results_group_wide, p_value, by=c("Metabolite")) 
+results_sig <- results_group_wide
+
+  results_sig$Abundance <- "NS"
+  # if log2Foldchange > 0.6 and pvalue < 0.05, set as "UP" 
+  results_sig$Abundance[results_sig$Log_FC > 0.6 & results_sig$p.adj < 0.05] <- "UP"
+  # if log2Foldchange < -0.6 and pvalue < 0.05, set as "DOWN"
+  results_sig$Abundance[results_sig$Log_FC < -0.6 & results_sig$p.adj < 0.05] <- "DOWN"
+  
+  results_sig$siglabel <- NA
+  results_sig$Metabolite <- as.character(results_sig$Metabolite)
+  results_sig$siglabel[results_sig$Log_FC < -0.6 & results_sig$p.adj < 0.05] <-   
+    results_sig$Metabolite[results_sig$Log_FC < -0.6 & results_sig$p.adj < 0.05]
+    results_sig$siglabel[results_sig$Log_FC > 0.6 & results_sig$p.adj < 0.05] <-   
+    results_sig$Metabolite[results_sig$Log_FC > 0.6 & results_sig$p.adj < 0.05]
+  results_sig$siglabel <- factor(results_sig$siglabel)
+```
+
+#Volcano plot
+```{r, message=F, warning=F}
+library(ggrepel)
+
+ggplot(data=results_sig, aes(x=Log_FC, y=Log10_p, color=Abundance, label=siglabel)) + 
+   geom_point(alpha = 0.7, size=1.5, stroke=0) + 
+   geom_text_repel(size=0.5) +
+    theme(panel.background = element_rect(fill = "white", colour = "grey50"),
+         strip.background = element_rect(fill="white", size = 3),
+         strip.text=element_text(color = "black", size=7),
+         panel.border = element_rect(colour = "grey", fill=NA, size=1),
+         axis.text.x = element_text(color = "black", size=7), 
+         axis.text.y = element_text(color = "black", size=7),
+         axis.title.x =element_text(color = "black", size=7), 
+         axis.title.y =element_text(color = "black", size=7),
+         legend.position = "none",
+         aspect.ratio=1) +
+   guides(colour = guide_legend(nrow = 1)) +
+   geom_vline(xintercept=c(-0.6, 0.6), col="grey50", linetype = "dotted") +
+   geom_hline(yintercept=-log10(0.05), col="grey50", linetype = "dotted") +
+   scale_x_continuous(name="Log2 (Fold Change)",limits=c(-10,10), breaks=seq(-10, 10, 2))+
+   scale_y_continuous(name="-Log10 (p-value)",limits=c(0,4), breaks=seq(0, 4, 1))+
+   scale_color_manual(values=c("steelblue2", "grey70","orangered1")) 
+# ggsave("FigSx_volcano_d6vsd0.pdf",device=cairo_pdf, width=90, height= 60, units = "mm", dpi = 600)
+```
+
+##heatmap of data
+```{r, message=F, warning=F}
+
+library(pheatmap)
+library(grid)
+
+Metab_zscore <- results_center %>%
+  filter(Type=='Bee')%>%
+  select(Sample_Name,Metabolite,z_score)%>%
+  pivot_wider(names_from = 'Sample_Name', values_from = 'z_score')%>%
+  column_to_rownames(var = "Metabolite") 
+  
+bee_data <- results_center %>%
+  ungroup()%>%
+  filter(Type=="Bee")%>%
+  select(Sample_Name,Metabolite,Day)%>%
+  filter(Metabolite == 'Citrate')%>%
+  select(c(-Metabolite))%>%
+  column_to_rownames(var = "Sample_Name") 
+row.names(bee_data) <- colnames(Metab_zscore) 
+
+heat<-pheatmap(Metab_zscore,annotation_col = bee_data, fontsize=6)
+
+save_pheatmap_pdf <- function(x, filename, width=7, height=7) {
+   stopifnot(!missing(x))
+   stopifnot(!missing(filename))
+   pdf(filename, width=width, height=height)
+   grid::grid.newpage()
+   grid::grid.draw(x$gtable)
+   dev.off()
+}
+#save_pheatmap_pdf(heat, "heatmap.pdf")
+```
+
+## Absolute concentration of selected metabolites using Standards
+```{r, message=F, warning=F}
+
+Std_conc_input <- read_csv("Standard_concentrations_input.csv")
+Std_constituents <- read_csv("Standards_constituents.csv")
+
+Standards <- data.frame(Standard = c('3HMG','Fum','Cit','Mal','Pyr','Lactate','Icit','Hypoxanthine','Urea', 'Kynurenine','Caffeic acid','2-Ketoglutarate'))
+
+Std_constituents_1 <- Std_constituents %>%
+  separate_rows(Contents , sep = ' ')%>%
+  rename(Well = Contents)%>%
+  left_join(Std_conc_input, by = 'Well')%>%
+  rename('Metabolite' = 'Standard')
+
+###
+
+Quant_table_targeted <- read_csv("Quant_table_targeted_v2.csv")
+Metab_names_quant <- read_csv("Metabolite_names_targeted.csv")
+
+results_wide_quant <- Quant_table_targeted %>%
+  pivot_longer(
+   cols =  c("Propylene glycol, 2TMS derivative":"Kynurenine, 3TMS derivative"),
+   names_to = "Name_NIST_targeted",
+   values_to = "Response",
+   values_drop_na = FALSE) %>%
+  select(-"Data File",-"Acq. Date-Time",-"Vial")
+
+results_quant <- results_wide_quant %>%
+  inner_join(Metab_names_quant, by = "Name_NIST_targeted")%>%
+  mutate(Order = str_extract(Sample_Name, "\\d"),
+    Day = case_when(
+    str_detect(Sample_Name, "_0d") ~ 0,
+    str_detect(Sample_Name, "_6d") ~ 6),
+  Replicate = str_extract(Sample_Name, "_\\d_\\d"),
+  Replicate = str_sub(Replicate, 4, 4))
+
+results_quant$Type <- factor(results_quant$Type) 
+results_quant$Day <- factor(results_quant$Day)
+results_quant$Replicate <- factor(results_quant$Replicate)
+results_quant$Metabolite <- factor(results_quant$Metabolite)
+```
+
+```{r, message=F, warning=F}
+library(broom)
+results_trim_quant <- results_quant %>%
+  group_by(Metabolite) %>%
+   mutate_at("Response", function(x) ifelse(is.na(x), 1, x)) 
+
+Internal_std_quant <- results_trim_quant %>%
+  filter(Metabolite == "Norleucine" | Metabolite == "Norvaline" | Metabolite == "Vanillate" | Metabolite == "Tartrate" | Metabolite == "3-Hydroxybutyrate") %>%
+  select(-'Name_NIST_targeted')%>%
+  pivot_wider(names_from = Metabolite, values_from = Response)
+
+results_norm_quant <- results_trim_quant %>%
+  left_join(Metab_ISTD_norm, join_by= Metabolite) %>%
+  mutate(ISTD = case_when(is.na(ISTD) ~ '3-Hydroxybutyrate',
+                          TRUE ~ ISTD))%>%
+  left_join(Internal_std_quant, join_by= c(Sample_Name))%>%
+  rename(Bhb = '3-Hydroxybutyrate',Nval = Norvaline, Nle = Norleucine, Tar = Tartrate, Van = Vanillate)%>%
+  mutate(Response_norm = case_when(ISTD == '3-Hydroxybutyrate' ~ Response / Bhb,
+                                   ISTD == 'Norvaline' ~ Response / Nval,
+                                   ISTD == 'Norleucine' ~ Response / Nle,
+                                   ISTD == 'Tartrate' ~ Response / Tar,
+                                   ISTD == 'Vanillate' ~ Response / Van,
+                                    TRUE ~ Response / Bhb))
+
+max_metabs <- results_norm_quant %>%
+  filter(Type != "Standard" & Type != "Blank")%>%
+  filter(Metabolite == '3Hmg' | Metabolite == 'a-Ketoglutarate' | Metabolite == 'Caffeate' | 
+  Metabolite == 'Citrate' | Metabolite == 'Fumarate' | Metabolite == 'Hypoxanthine' | 
+  Metabolite == 'Isocitrate' | Metabolite == 'Kynurenine' | Metabolite == 'Lactate' | 
+  Metabolite == 'Malate' | Metabolite == 'Pyruvate' | Metabolite == 'Urea')%>%
+  group_by(Metabolite)%>%
+  summarize(max_value = max(Response_norm))
+  
+stds_curve <- results_norm_quant %>%
+  filter(Type == "Standard")%>%
+  filter(Metabolite == '3Hmg' | Metabolite == 'a-Ketoglutarate' | Metabolite == 'Caffeate' | 
+  Metabolite == 'Citrate' | Metabolite == 'Fumarate' | Metabolite == 'Hypoxanthine' | 
+  Metabolite == 'Isocitrate' | Metabolite == 'Kynurenine' | Metabolite == 'Lactate' | 
+  Metabolite == 'Malate' | Metabolite == 'Pyruvate' | Metabolite == 'Urea')%>%
+  left_join(Std_constituents_1, by = c('Sample_Name', 'Metabolite'))%>%
+  #filter(!is.na(Mixed_Concentration_uM))%>%
+  mutate(Mixed_Concentration_uM = case_when(is.na(Mixed_Concentration_uM) ~ 0.1,
+                          TRUE ~ Mixed_Concentration_uM))%>%
+  left_join(max_metabs, by= 'Metabolite')
+
+# trim standards above max sample concentrations
+stds_curve_max <- stds_curve %>%
+  group_by(Metabolite,Mixed_Concentration_uM)%>%
+  mutate(min_step = min(Response_norm))%>%
+  ungroup() %>%
+  filter(min_step > max_value)%>%
+  group_by(Metabolite) %>%
+  summarise(min_level = min(Mixed_Concentration_uM))
+
+stds_curve_trim <- stds_curve %>%
+  left_join(stds_curve_max, by = 'Metabolite')%>%
+  filter(Mixed_Concentration_uM <= min_level)
+
+###
+
+stds_coef <- stds_curve_trim %>% 
+  nest(data = -Metabolite) %>% 
+mutate(model = map(data, ~lm(Response_norm ~ Mixed_Concentration_uM, data = .)), tidied = map(model, tidy)) %>% unnest(tidied)
+
+stds_equ <- stds_coef %>%
+  select(Metabolite, term, estimate)%>%
+  pivot_wider(names_from=term, values_from = estimate)
+
+###  Calculate absolute abundance and scale / mg gut weight
+results_absolute <- results_norm_quant %>%
+  filter(Metabolite == '3Hmg' | Metabolite == 'a-Ketoglutarate' | Metabolite == 'Caffeate' | 
+  Metabolite == 'Citrate' | Metabolite == 'Fumarate' | Metabolite == 'Hypoxanthine' | 
+  Metabolite == 'Isocitrate' | Metabolite == 'Kynurenine' | Metabolite == 'Lactate' | 
+  Metabolite == 'Malate' | Metabolite == 'Pyruvate' | Metabolite == 'Urea')%>%
+  filter(Type != 'Standard' & Type != 'Blank')%>%
+  left_join(stds_equ, by = 'Metabolite') %>%
+  rename(b = '(Intercept)', a = 'Mixed_Concentration_uM')%>%
+  mutate(Concentration = (Response_norm-b)/a,
+         Concentration = case_when(Concentration < 0 ~ 0,
+                                   TRUE ~ Concentration),
+         Concentration_norm = case_when(Day == 0 ~ Concentration * 5 / 22.06,
+                                   Day == 6 ~ Concentration * 5 / 28.68,
+                                   Type == 'Pollen' ~ Concentration / 28.68)) 
+```
+
+```{r,message=F, warning=F}
+library(lme4)
+library(cowplot)
+
+
+ggplot(data = stds_curve_trim, aes(x = Mixed_Concentration_uM, y = Response_norm)) +
+  geom_point(data = results_absolute, aes(x = Concentration, y = Response_norm), color = 'black') +
+  geom_point(aes(color=Metabolite)) +
+  stat_smooth(method = "lm",formula = y ~ x, color='grey50', linetype = 'dashed', se=F)+
+  stat_cor(aes(x = Mixed_Concentration_uM, y = Response_norm, label = after_stat(rr.label)),
+            color = "black", geom = "label")+
+  theme(panel.background = element_rect(fill = "white", colour = "grey50"), 
+        legend.position = "right", axis.text.x = element_text(color = "black", size=7))+
+  #scale_y_log10() +
+   # scale_x_log10(name = 'Concentration [uM]') +
+  facet_wrap(~Metabolite, scales = "free",nrow = 5)
+
+Concentration_plot <- results_absolute %>%
+  group_by(Metabolite, Type, Day)%>%
+  summarise(mean_conc = mean(Concentration_norm),
+            sd_conc = sd(Concentration_norm))%>%
+  filter(Metabolite != 'Pyruvate')%>%
+  mutate(Metabolite = fct_reorder(Metabolite, mean_conc))
+
+p1 <- ggplot(subset(Concentration_plot, Metabolite %in% c('3Hmg','a-Ketoglutarate','Caffeate','Fumarate', 'Hypoxanthine', 'Isocitrate', 'Kynurenine','Lactate','Malate', 'Urea')), aes(x=Metabolite, y=mean_conc))+
+  geom_col(aes(fill=Day,color=Day),position = position_dodge2(preserve = "single", padding = 0.15))+
+  geom_errorbar(aes(ymin=mean_conc, ymax=mean_conc+sd_conc,fill=Day), width=.2,
+                 position=position_dodge(.9)) +
+  scale_fill_manual(values=c("grey60", "grey30"), na.value="#E6AB02") +
+  scale_color_manual(values=c("grey60", "grey30"), na.value="#E6AB02") +
+  theme(panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        panel.background = element_rect(fill = "white", colour = "grey50"), 
+        axis.text.x = element_text(color = "black", size=5), 
+        axis.text.y = element_text(color = "black", size=6),
+        axis.title.x =element_text(color = "black", size=7),
+        axis.title.y =element_text(color = "black", size=7),
+        legend.text = element_text(color = "black", size=7), 
+        legend.title = element_text(color = "black", size=7),
+        legend.position = c(0.5, 0.7),
+        legend.key.size = unit(0.25, 'cm'),
+        plot.title = element_text(hjust = 0.5, size=8),
+        plot.margin = margin(5.5, 1, 5.5, 5.5, "pt"))+
+  scale_y_continuous(name="Gut Concentration (umol / mg)",limits=c(0,12), breaks=seq(0, 12, 2))+
+  scale_x_discrete(name="Metabolite")
+
+p2 <- ggplot(subset(Concentration_plot, Metabolite %in% c('Citrate')), aes(x=Metabolite, y=mean_conc))+
+  geom_col(aes(fill=Day,color=Day),position = position_dodge2(preserve = "single", padding = 0.15))+
+  geom_errorbar(aes(ymin=mean_conc, ymax=mean_conc+sd_conc,fill=Day), width=.2,
+                 position=position_dodge(.9)) +
+  scale_fill_manual(values=c("grey60", "grey30"), na.value="#E6AB02") +
+  scale_color_manual(values=c("grey60", "grey30"), na.value="#E6AB02") +
+  theme(panel.border = element_rect(colour = "grey", fill=NA, size=1),
+        panel.background = element_rect(fill = "white", colour = "grey50"), 
+        axis.text.x = element_text(color = "black", size=5), 
+        axis.text.y = element_text(color = "black", size=6),
+        axis.title.x =element_text(color = "black", size=7),
+        axis.title.y =element_text(color = "black", size=7),
+        legend.text = element_text(color = "black", size=7), 
+        legend.title = element_text(color = "black", size=7),
+        legend.position = "none",
+        plot.margin = margin(5.5, 5.5, 5.5, 1, "pt"))+
+  scale_y_continuous(name="Gut Concentration (umol / mg)",limits=c(0,120), breaks=seq(0, 120, 20),position = "right")+
+  scale_x_discrete()
+
+plot_grid(p1, p2, rel_widths = c(5.5, 1))
+# ggsave("Fig2a_absolute_abundance.pdf" ,device=cairo_pdf, width=140, height= 60, units = "mm", dpi = 600)
+```
+
+
