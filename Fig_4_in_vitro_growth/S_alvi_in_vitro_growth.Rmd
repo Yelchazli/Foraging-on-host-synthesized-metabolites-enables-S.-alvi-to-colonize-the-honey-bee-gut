@@ -86,27 +86,22 @@ Growth_rate_max_avg <- Growth_rate_max %>%
 ggplot(data = Growth_rate_max, aes(x = Condition, y = dODdt_max)) +
     geom_col(data=Growth_rate_max_avg, aes(x = Condition, y = dODdt_m_avg),
              color="black", fill="slategrey", alpha=0.5,outlier.shape = NA)+
-  geom_point(color="black", size=0.75)+
+  geom_point(color="black", size=1)+
   geom_hline(yintercept=0.00358, col="grey30", linetype = "dotted", size = 0.75) +
   theme(panel.background = element_rect(fill = "white", colour = "grey50"),
-    panel.border = element_rect(colour = "grey", fill=NA, size=1),
-    strip.background = element_rect(fill="white",colour = "black"),
-    strip.text=element_text(color = "black", size=14),
-    legend.position = "none",
-    legend.text=element_text(face="bold", size = 14),
-    axis.ticks=element_line(size=0.4),
-    axis.text.x = element_text(color = "black", size = 5, angle=90, hjust=1),
-    axis.text.y = element_text(color = "black", size = 6),
-    axis.title = element_text(size=8),
-    axis.title.y = element_text(size=8),
-    legend.title = element_text(size=8),
-    plot.background=element_blank())+
+         legend.position = "top",
+         panel.border = element_rect(colour = "grey", fill=NA, size=1),
+         axis.text.x = element_text(color = "black", size=7, angle=90, hjust=1), 
+         axis.text.y = element_text(color = "black", size=7),
+         axis.title.x =element_text(color = "black", size=7), 
+         axis.title.y =element_text(color = "black", size=7),
+         legend.text = element_text(color = "black", size=7), 
+         legend.title = element_text(color = "black", size=7),
+         aspect.ratio=3/4)+
   scale_y_continuous( name = "[Growth rate]_max (/h)", limits=c(0,0.04), breaks=seq(0, 0.05, 0.005)) +
   stat_compare_means(p.adjust.method = "BH", ref.group = "Cit", 
                      label = "p.signif", label.y = 0.038, na.rm = TRUE, hide.ns = TRUE,size=5)
-#ggsave("Fig4a_Sn_max_growth_rate_all.pdf",device=cairo_pdf, width=4, height= 3, units = "in", dpi = 300)
-
-
+#ggsave("Fig4b_revised.pdf",device=cairo_pdf, width=90, height= 90, units = "mm", dpi = 600)
 
 
 ```
@@ -204,35 +199,47 @@ results_fc_avg <- results_fc %>%
 
 
 Products <- results_fc_avg %>%
-  filter(Metabolite != "Anthranilate",Metabolite != "C5/6_acid", Metabolite != "Benzoate",Metabolite != "Isobutanol") %>%
+  filter(Metabolite != "Anthranilate",Metabolite != "C5/6_acid", Metabolite != "Benzoate",Metabolite != "Isobutanol", Metabolite != "Butyrate",Metabolite != "Propanoate", Metabolite != "Formate") %>%
   mutate(Condition = fct_relevel(Condition, "All","Cit_3Hmg","Cit_Fum", "Fum","Cit_Suc","Suc", "Cit_Gaba",   
                                             "Cit_Pyr","Pyr","Cit_Ace","Mal","Cit"),
          Metabolite = fct_relevel(Metabolite,"Formate","Acetate","Pyruvate", "Lactate","Propanoate","Butyrate","Succinate", "Fumarate", "Malate","a_Ketoglutarate","2-Oxoisovalerate","Citrate","3_HMG"))
 
 
-ggplot(data = Products, aes(x=Metabolite, y = Condition, fill = Produced)) + 
+ggplot(data = Products, aes(x=Condition, y = Metabolite, fill = Log_FC_avg)) + 
   geom_tile(colour="white",size=0.25)+
   coord_equal() +
   labs(x="")+
-  scale_y_discrete(name = "Growth Substrates",limits=rev)+
-  scale_x_discrete(name = "Products")+
-  scale_fill_manual(values=c("grey90","darkorange1"))+
+  scale_x_discrete(name = "Growth Substrates")+
+  scale_y_discrete(name = "Products")+
   theme(panel.background = element_rect(fill = "white", colour = "grey50"),
     panel.border = element_rect(colour = "grey", fill=NA, size=1),
     strip.background = element_rect(fill="white",colour = "black"),
-    strip.text=element_text(color = "black", size=14),
-    legend.position = "none",
-    legend.text=element_text(face="bold", size = 14),
+    strip.text=element_text(color = "black", size=7),
+    legend.key.size = unit(5, 'mm'),
+    legend.key.width = unit(2.5, 'mm'),
+    legend.position = "right",
+    legend.margin=margin(0,0,0,0),
+    legend.box.spacing=unit(1, "mm"),
+    legend.text=element_text(size = 7),
     axis.ticks=element_line(size=0.4),
-    axis.text.x = element_text(color = "black", size = 5, angle=90, hjust=1),
-    axis.text.y = element_text(color = "black", size = 6),
-    axis.title = element_text(size=8),
-    axis.title.y = element_text(size=8),
-    legend.title = element_text(size=8),
-    plot.background=element_blank())
-#ggsave("Fig4B_Sn_products_heat.pdf",device=cairo_pdf, width=3, height= 3, units = "in", dpi = 300)
-
-
+    axis.text.x = element_text(color = "black", size = 7, angle=90, hjust=1),
+    axis.text.y = element_text(color = "black", size = 7),
+    axis.title = element_text(size=7),
+    axis.title.y = element_text(size=7),
+    legend.title = element_text(size=7),
+    plot.background=element_blank())+
+ # scale_fill_gradient2(limits = c(-20,20),low = "steelblue2",mid = "grey90",high = "orangered1",
+  #                     midpoint = 0,space = "Lab", na.value = "white",guide = "colourbar",aesthetics = "fill")
+  binned_scale(aesthetics = "fill",
+               scale_name = "stepsn", 
+               palette = function(x) c( "#313695","#4575B4","#74ADD1","#ABD9E9","grey90",
+                                        "#FDAE61","#F46D43","#D73027","#A50026"),
+               breaks = c(-15, -10, -5, -1, 1, 5, 10, 15),
+               limits = c(-20, 20),
+               show.limits = TRUE,
+               na.value = "white",
+               guide = "colorsteps")
+#ggsave("Fig4B_Sn_products_heat_revised3.pdf",device=cairo_pdf, width=90, height= 100, units = "mm", dpi = 600)
 
 
 ```
@@ -396,16 +403,17 @@ ggplot(data = results_kyn, aes(x = Colonization, y=TIC, color=Colonization, shap
         axis.text.y = element_text(color = "black", size = 8),
         axis.title.x = element_text(size=8),
         axis.title.y = element_text(size=8),
-        plot.title= element_text(size=8)) +
+        plot.title= element_text(size=8),
+         aspect.ratio=6) +
   scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
                 labels = scales::trans_format("log10", scales::math_format(10^.x)),
                  limits = c(1e+00, 1e+07)) +
- # stat_compare_means(method = "wilcox.test", na.rm = TRUE,  hide.ns = TRUE, size=2)+
+  #stat_compare_means(method = "t.test", paired= TRUE, na.rm = TRUE,  hide.ns = TRUE, size=2)+
   xlab("Metabolite") +
   ylab("Ion Abundance") +
-  scale_color_manual(values= c("orangered1","steelblue2"))
+  scale_color_manual(values= c("steelblue2","orangered1"))
  
-#  ggsave("Fig4c_Sn_Kyn_consumption.pdf",device=cairo_pdf, width=3, height= 3, units = "in", dpi = 300)
+  #ggsave("Fig4c_revised2.pdf",device=cairo_pdf, width=80, height= 80, units = "mm", dpi = 600)
   
 
 ```
