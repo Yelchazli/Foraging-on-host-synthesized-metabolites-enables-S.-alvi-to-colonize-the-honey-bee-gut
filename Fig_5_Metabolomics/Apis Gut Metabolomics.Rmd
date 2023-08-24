@@ -322,12 +322,11 @@ results_sig <- rbind(results_sig,results_group_wide_897)
                                      levels = c("MD", "ESL0145", "ESL0304", "ESL0323", "ESL0251","ESL0897"))
   results_sig$Colonizations <- recode_factor(results_sig$Colonizations, "701" = "0")
   
-  #Volcano plot
-  
+#Volcano plot
   library(ggrepel)
   
  ggplot(data=results_sig, aes(x=Log_FC, y=Log10_p, col=Abundance, label=siglabel)) + 
-  geom_point(alpha = 0.7, size=1.0, stroke=0) + 
+  geom_point(alpha = 0.7, size=2, stroke=0) + 
    geom_text_repel(size=2, color = "black", force = 5) +
    theme(panel.background = element_rect(fill = "white", colour = "grey50"),
          strip.background = element_rect(fill="white", size = 3),
@@ -335,38 +334,39 @@ results_sig <- rbind(results_sig,results_group_wide_897)
          legend.position = "none", 
          axis.text.x = element_text(color = "black", size=6),
          axis.text.y = element_text(color = "black", size=6),
-         axis.title.x = element_text(color = "black",size = 8, face = "bold"), 
-         axis.title.y = element_text(color = "black",size = 8, face = "bold")) +
+         axis.title.x = element_text(color = "black",size = 7, face = "bold"), 
+         axis.title.y = element_text(color = "black",size = 7, face = "bold"),
+         aspect.ratio=1) +
    geom_vline(xintercept=c(-0.6, 0.6), col="grey50", linetype = "dashed", size = 0.25) +
    geom_hline(yintercept=-log10(0.05), col="grey50", linetype = "dashed", size = 0.25) +
    scale_x_continuous(name="Log2 (Fold Change)",limits=c(-10,10), breaks=seq(-10, 10, 2))+
-   scale_y_continuous(name="-Log10 (p-Value)",limits=c(0,7), breaks=seq(0, 7, 1))+
+   scale_y_continuous(name="-Log10 (p-value)",limits=c(0,7), breaks=seq(0, 7, 1))+
    scale_color_manual(values=c("steelblue2","grey70", "orangered1")) +
-   facet_wrap(~Colonization, nrow =1)
-#ggsave("FigS5_Sn_strain_volcanos.pdf",device=cairo_pdf, width=7, height= 4, units = "in", dpi = 300)
+   facet_wrap(~Colonization, nrow =2)
+#ggsave("FigS6_Sn_strain_volcanos_revised.pdf",device=cairo_pdf,width=180, height= 120, units = "mm", dpi = 600)
  
 ggplot(data=results_sig, aes(x=Log_FC, y=Log10_p, color=Colonizations, label=siglabel)) + 
    geom_point(size = 1.5) + 
    geom_text_repel(size=2.5) +
-   theme(panel.background = element_rect(fill = "white", colour = "grey50"), 
-         legend.position = "right", 
-         axis.text.x = element_text(color = "black", size=14), 
-         axis.text.y = element_text(color = "black", size=14),
-         axis.title.x =element_text(color = "black", size=16), 
-         axis.title.y =element_text(color = "black", size=16),
-         legend.text = element_text(color = "black", size=14), 
-         legend.title = element_text(color = "black", size=14),
-         plot.title = element_text(hjust = 0.5, size=16)) +
-   guides(colour = guide_legend(nrow = 6)) +
+   theme(panel.background = element_rect(fill = "white", colour = "grey50"),
+         legend.position = "top",
+         panel.border = element_rect(colour = "grey", fill=NA, size=1),
+         axis.text.x = element_text(color = "black", size=7), 
+         axis.text.y = element_text(color = "black", size=7),
+         axis.title.x =element_text(color = "black", size=7), 
+         axis.title.y =element_text(color = "black", size=7),
+         legend.text = element_text(color = "black", size=7), 
+         legend.title = element_text(color = "black", size=7),
+         aspect.ratio=1) +
+   guides(colour = guide_legend(nrow = 1)) +
    geom_vline(xintercept=c(-0.6, 0.6), col="grey50", linetype = "dotted") +
    geom_hline(yintercept=-log10(0.05), col="grey50", linetype = "dotted") +
    labs(color = "Strains (Num.)")+
    scale_x_continuous(name="Log2 (Fold Change)",limits=c(-10,10), breaks=seq(-10, 10, 2))+
    scale_y_continuous(name="-Log10 (p-value)",limits=c(0,7), breaks=seq(0, 7, 1))+
-   scale_color_manual(values=c( "#999999", "#E69F00","#56B4E9","#009E73", "#0072B2", "#D55E00")) +
-   #scale_color_brewer(palette = "Dark2", direction = -1) +
+   scale_color_manual(values=c( "grey75", "#c3bc3f","#55ad89","#6388b4","#ffae34", "#ef6f6a")) +
    ggtitle("Gut Metabolite Changes: Sn vs MD Bees")
- #ggsave("Fig6.pdf",device=cairo_pdf, width=4, height= 4, units = "in", dpi = 300)
+ #ggsave("Fig6_revised4.pdf",device=cairo_pdf, width=90, height= 120, units = "mm", dpi = 600)
  
 
 ```
